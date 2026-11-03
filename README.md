@@ -65,4 +65,60 @@ flowchart LR
 
 ## Stanje projekta
 
-Detaljan opis domena i kod dodaju se tokom semestra.
+KT1: mobilna aplikacija i backoffice rade nad istim domenskim paketom, nad lažnim podacima u memoriji. Svaki klijent ima svoje podatke i oni nisu sinhronizovani. Server, javni veb i rad bez mreže dolaze u KT2–KT4.
+
+| Folder | Šta je |
+| --- | --- |
+| `packages/domain` | čist Dart: model, stanja zahteva (`RequestStatus`), `canTransition`, pravila (`rules.dart`), akcije i portovi |
+| `packages/blocs` | čist Dart: `RequestsBloc` (glavni tok klijenta), `CatalogBloc`, `NewRequestBloc`, `AdminRequestsBloc` |
+| `packages/ui` | tema, font Inter, srpski nazivi i poruke grešaka, zajednički widget-i |
+| `apps/mobile` | Flutter za Android, uloga klijent |
+| `apps/backoffice` | Flutter za Windows i veb, uloga moderator |
+
+Pravila (zahtev 3) su u `packages/domain/lib/src/rules.dart`, a konstante (`maxRevisions`, `maxNoteLength`, `defaultCapacity`) na vrhu tog fajla.
+
+### Pokretanje
+
+Potrebni su Flutter 3.47 (Dart 3.13), Android SDK sa emulatorom ili telefonom za mobilnu aplikaciju i Visual Studio sa „Desktop development with C++“ za Windows verziju backoffice-a. Okruženje se proverava komandom `flutter doctor`.
+
+Iz korena repozitorijuma:
+
+```sh
+flutter pub get
+```
+
+Mobilna aplikacija, na Android emulatoru ili telefonu:
+
+```sh
+cd apps/mobile
+flutter run
+```
+
+Backoffice:
+
+```sh
+cd apps/backoffice
+flutter run -d windows    # ili -d chrome
+```
+
+Testovi: `dart test` u `packages/domain` i `packages/blocs`, `flutter test` u `apps/mobile` i `apps/backoffice`.
+
+### Demo stanja ekrana
+
+- Mobilna: kartica **Podešavanja** ima prekidače „Sledeći zahtev vraća grešku“ i „Sledeća lista zahteva je prazna“.
+- Backoffice: meni sa ikonicom epruvete u gornjem desnom uglu.
+
+### Backoffice tastaturom
+
+| Prečica | Radnja |
+| --- | --- |
+| ↑ ↓ | kretanje kroz zahteve |
+| Enter | otvori detalj |
+| Esc | zatvori detalj |
+| Ctrl F | pretraga |
+| Ctrl K | otkaži izabrani zahtev |
+| Ctrl Enter | zatvori isporučen zahtev kao završen |
+| Ctrl Shift Enter | vrati isporučen zahtev u izradu |
+| F1 ili ? | pregled prečica |
+
+Ispod 720 px širine tabela postaje lista, a izbor ostaje.
