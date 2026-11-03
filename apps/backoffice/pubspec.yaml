@@ -1,0 +1,27 @@
+name: backoffice
+description: SoundConnect backoffice za moderatore, desktop i veb.
+publish_to: none
+version: 0.1.0+1
+
+environment:
+  sdk: ^3.13.0
+resolution: workspace
+
+dependencies:
+  blocs:
+    path: ../../packages/blocs
+  domain:
+    path: ../../packages/domain
+  flutter:
+    sdk: flutter
+  flutter_bloc: 9.1.1
+  ui:
+    path: ../../packages/ui
+
+dev_dependencies:
+  flutter_lints: 6.0.0
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  uses-material-design: true

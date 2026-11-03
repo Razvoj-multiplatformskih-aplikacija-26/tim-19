@@ -1,0 +1,15 @@
+name: domain
+description: SoundConnect model, stanja i pravila zahteva za saradnju, zajednički za sve klijente i server.
+publish_to: none
+version: 0.1.0
+
+environment:
+  sdk: ^3.13.0
+resolution: workspace
+
+dependencies:
+  collection: 1.19.1
+  meta: 1.19.0
+
+dev_dependencies:
+  test: 1.31.1

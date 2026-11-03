@@ -1,0 +1,16 @@
+name: soundconnect_workspace
+description: SoundConnect, jedan sistem na jednom jeziku. Workspace razrešava sve aplikacije i pakete zajedno.
+publish_to: none
+
+environment:
+  sdk: ^3.13.0
+
+workspace:
+  - apps/mobile
+  - apps/backoffice
+  - packages/domain
+  - packages/blocs
+  - packages/ui
+
+dev_dependencies:
+  flutter_lints: 6.0.0
