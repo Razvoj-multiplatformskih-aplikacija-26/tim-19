@@ -1,0 +1,11 @@
+name: api_contract
+description: SoundConnect HTTP ugovor između klijenata i servera, sa putanjama, kodovima grešaka i oblikom JSON-a. Ne zavisi od domena, Flutter-a ni dart:io.
+publish_to: none
+version: 0.1.0
+
+environment:
+  sdk: ^3.13.0
+resolution: workspace
+
+dev_dependencies:
+  test: 1.31.1

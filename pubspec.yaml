@@ -11,6 +11,7 @@ workspace:
   - packages/domain
   - packages/blocs
   - packages/ui
+  - packages/api_contract
 
 dev_dependencies:
   flutter_lints: 6.0.0
