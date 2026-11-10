@@ -7,7 +7,7 @@ part 'new_request_state.dart';
 
 /// Forma za novi zahtev. Napomenu proverava pravilo iz domena pri svakom unosu.
 final class NewRequestBloc extends Bloc<NewRequestEvent, NewRequestState> {
-  NewRequestBloc({required this.requests, required this.provider, required this.clientId})
+  NewRequestBloc({required this.requests, required this.provider, required this.user})
     : super(NewRequestState(service: provider.services.first)) {
     on<NoteChanged>((event, emit) {
       emit(
@@ -23,7 +23,9 @@ final class NewRequestBloc extends Bloc<NewRequestEvent, NewRequestState> {
 
   final RequestsRepository requests;
   final Provider provider;
-  final ClientId clientId;
+
+  /// Prijavljeni klijent; zahtev se šalje u njegovo ime.
+  final User user;
 
   /// Prazna napomena se prijavljuje tek posle prvog slanja, da forma ne počne crvena.
   static DomainError? _noteError(String text, {required bool attempted}) => switch (noteWithinLength(text)) {
@@ -40,7 +42,12 @@ final class NewRequestBloc extends Bloc<NewRequestEvent, NewRequestState> {
       return;
     }
     emit(state.copyWith(attempted: true, noteError: null, status: NewRequestStatus.submitting));
-    final draft = NewRequest(clientId: clientId, providerId: provider.id, service: state.service, note: state.note);
+    final draft = NewRequest(
+      clientId: user.asClient,
+      providerId: provider.id,
+      service: state.service,
+      note: state.note,
+    );
     try {
       switch (await requests.create(draft)) {
         case Success(:final value):

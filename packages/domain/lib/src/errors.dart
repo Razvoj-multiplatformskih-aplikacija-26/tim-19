@@ -1,8 +1,8 @@
 import 'package:meta/meta.dart';
 
-import 'actor.dart';
 import 'catalog.dart';
 import 'request_status.dart';
+import 'user.dart';
 
 /// Greške pravila kao tipovi. Tekst poruke bira aplikacija.
 sealed class DomainError {
@@ -11,21 +11,21 @@ sealed class DomainError {
 
 @immutable
 final class InvalidTransition extends DomainError {
-  const InvalidTransition({required this.from, required this.to, required this.actor});
+  const InvalidTransition({required this.from, required this.to, required this.role});
 
   final RequestStatus from;
   final RequestStatus to;
-  final Actor actor;
+  final Role role;
 
   @override
   bool operator ==(Object other) =>
-      other is InvalidTransition && other.from == from && other.to == to && other.actor == actor;
+      other is InvalidTransition && other.from == from && other.to == to && other.role == role;
 
   @override
-  int get hashCode => Object.hash(InvalidTransition, from, to, actor);
+  int get hashCode => Object.hash(InvalidTransition, from, to, role);
 
   @override
-  String toString() => 'InvalidTransition(${from.name} -> ${to.name} by ${actor.name})';
+  String toString() => 'InvalidTransition(${from.name} -> ${to.name} by ${role.name})';
 }
 
 /// Klijent otkazuje samo dok pružalac nije prihvatio zahtev.
@@ -154,4 +154,62 @@ final class NotDelivered extends DomainError {
 
 final class NotFound extends DomainError {
   const NotFound();
+}
+
+/// Korisnik nema pravo na akciju ili zapis (tuđ zahtev, akcija druge uloge).
+final class NotAllowed extends DomainError {
+  const NotAllowed();
+}
+
+/// Korisnik se prijavljuje u aplikaciju koja nije za njegovu ulogu.
+@immutable
+final class WrongApp extends DomainError {
+  const WrongApp(this.app);
+
+  /// Aplikacija u koju je pokušao da se prijavi.
+  final ClientApp app;
+
+  @override
+  bool operator ==(Object other) => other is WrongApp && other.app == app;
+
+  @override
+  int get hashCode => Object.hash(WrongApp, app);
+
+  @override
+  String toString() => 'WrongApp(${app.name})';
+}
+
+/// Zahtev je u međuvremenu promenio neko drugi; izmena je pravljena nad zastarelim stanjem.
+@immutable
+final class StaleRequest extends DomainError {
+  const StaleRequest(this.current);
+
+  /// Stanje u kome je zahtev sada.
+  final RequestStatus current;
+
+  @override
+  bool operator ==(Object other) => other is StaleRequest && other.current == current;
+
+  @override
+  int get hashCode => Object.hash(StaleRequest, current);
+
+  @override
+  String toString() => 'StaleRequest(${current.name})';
+}
+
+/// Server je odbio akciju kodom koji ova verzija aplikacije ne poznaje (novo pravilo na serveru).
+@immutable
+final class ServerRejected extends DomainError {
+  const ServerRejected(this.code);
+
+  final String code;
+
+  @override
+  bool operator ==(Object other) => other is ServerRejected && other.code == code;
+
+  @override
+  int get hashCode => Object.hash(ServerRejected, code);
+
+  @override
+  String toString() => 'ServerRejected($code)';
 }

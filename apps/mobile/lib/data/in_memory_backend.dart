@@ -4,10 +4,13 @@ import 'seed.dart';
 
 /// Lažna implementacija portova u memoriji, sa kašnjenjem i prekidačima za grešku i prazan odgovor.
 final class InMemoryBackend implements RequestsRepository, ProvidersRepository {
-  InMemoryBackend({DateTime? now, this.latency = const Duration(milliseconds: 700)})
+  InMemoryBackend({DateTime? now, this.latency = const Duration(milliseconds: 700), this.session = meUser})
     : _requests = seedRequests(now ?? DateTime.now());
 
   final Duration latency;
+
+  /// Korisnik u čije ime lažni port pravi zahteve; na serveru ga daje prijava.
+  final User session;
   final List<CollaborationRequest> _requests;
   final List<Provider> _providers = [...seedProviders];
 
@@ -58,6 +61,7 @@ final class InMemoryBackend implements RequestsRepository, ProvidersRepository {
     if (provider == null) return const Failure(ProviderNotListed());
     final result = createRequest(
       draft,
+      by: session,
       provider: provider,
       existing: _requests,
       id: RequestId('local-${_nextId++}'),
@@ -73,10 +77,8 @@ final class InMemoryBackend implements RequestsRepository, ProvidersRepository {
     final index = _requests.indexWhere((r) => r.id == request.id);
     if (index < 0) return const Failure(NotFound());
     final stored = _requests[index];
-    // Neko je u međuvremenu promenio zahtev (u KT2 to proverava server).
-    if (stored.status != from) {
-      return Failure(InvalidTransition(from: stored.status, to: request.status, actor: Actor.client));
-    }
+    // Neko je u međuvremenu promenio zahtev.
+    if (stored.status != from) return Failure(StaleRequest(stored.status));
     _requests[index] = request;
     return Success(request);
   }

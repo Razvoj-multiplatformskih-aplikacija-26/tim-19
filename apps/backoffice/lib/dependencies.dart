@@ -24,7 +24,7 @@ final class BackofficeDependencies {
     );
   }
 
-  final Moderator moderator;
+  final User moderator;
   final RequestsRepository requests;
   final ProvidersRepository providers;
   final ClientsRepository clients;

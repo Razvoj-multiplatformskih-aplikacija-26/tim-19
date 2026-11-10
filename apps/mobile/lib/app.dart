@@ -53,7 +53,7 @@ class _SoundConnectAppState extends State<SoundConnectApp> {
         providers: [
           BlocProvider(
             create: (_) =>
-                RequestsBloc(requests: deps.requests, providers: deps.providers, clientId: deps.client.id)
+                RequestsBloc(requests: deps.requests, providers: deps.providers, user: deps.user)
                   ..add(const LoadRequests()),
           ),
           BlocProvider(

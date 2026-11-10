@@ -1,4 +1,4 @@
-import 'actor.dart';
+import 'access_policy.dart';
 import 'errors.dart';
 import 'identifiers.dart';
 import 'model.dart';
@@ -6,55 +6,101 @@ import 'request_status.dart';
 import 'result.dart';
 import 'rules.dart';
 import 'transitions.dart';
+import 'user.dart';
 
-// Akcije nad zahtevom: proveravaju pravilo i prelaz, pa vraćaju izmenjen zahtev.
+// Akcije nad zahtevom. Redom proveravaju pravo (AccessPolicy), pravilo i prelaz, pa vraćaju izmenjen zahtev.
 // Klijenti i server ih pozivaju, a ne ponavljaju pravila.
 
 Result<CollaborationRequest> _move(
   CollaborationRequest request, {
   required RequestStatus to,
-  required Actor by,
+  required Role role,
+  required bool allowed,
   Result<void> rule = const Success(null),
   int? revisions,
 }) {
+  if (!allowed) return const Failure(NotAllowed());
   if (rule case Failure(:final error)) return Failure(error);
-  if (!canTransition(request.status, to, by)) {
-    return Failure(InvalidTransition(from: request.status, to: to, actor: by));
+  if (!canTransition(request.status, to, role)) {
+    return Failure(InvalidTransition(from: request.status, to: to, role: role));
   }
   return Success(request.copyWith(status: to, revisions: revisions));
 }
 
-Result<CollaborationRequest> cancelByClient(CollaborationRequest request) =>
-    _move(request, to: RequestStatus.cancelled, by: Actor.client, rule: canCancelByClient(request));
+/// Klijent otkazuje svoj zahtev dok ga pružalac nije prihvatio.
+Result<CollaborationRequest> cancelByClient(CollaborationRequest request, {required User by}) => _move(
+  request,
+  to: RequestStatus.cancelled,
+  role: Role.client,
+  allowed: AccessPolicy.canActAsClient(by, request),
+  rule: canCancelByClient(request),
+);
 
-Result<CollaborationRequest> confirmDelivery(CollaborationRequest request) =>
-    _move(request, to: RequestStatus.completed, by: Actor.client);
+/// Klijent potvrđuje isporuku svog zahteva.
+Result<CollaborationRequest> confirmDelivery(CollaborationRequest request, {required User by}) =>
+    _move(request, to: RequestStatus.completed, role: Role.client, allowed: AccessPolicy.canActAsClient(by, request));
 
-Result<CollaborationRequest> requestRevision(CollaborationRequest request) => _move(
+/// Klijent vraća isporučen zahtev na doradu; troši jednu reviziju.
+Result<CollaborationRequest> requestRevision(CollaborationRequest request, {required User by}) => _move(
   request,
   to: RequestStatus.inProgress,
-  by: Actor.client,
+  role: Role.client,
+  allowed: AccessPolicy.canActAsClient(by, request),
   rule: withinRevisionLimit(request),
   revisions: request.revisions + 1,
 );
 
-Result<CollaborationRequest> moderatorCancel(CollaborationRequest request) =>
-    _move(request, to: RequestStatus.cancelled, by: Actor.moderator, rule: moderatorCanCancel(request));
+/// Pružalac prihvata poslat zahtev upućen njemu.
+Result<CollaborationRequest> acceptByProvider(CollaborationRequest request, {required User by}) => _move(
+  request,
+  to: RequestStatus.accepted,
+  role: Role.provider,
+  allowed: AccessPolicy.canActAsProvider(by, request),
+);
 
-Result<CollaborationRequest> moderatorClose(CollaborationRequest request) =>
-    _move(request, to: RequestStatus.completed, by: Actor.moderator, rule: moderatorCanClose(request));
+/// Pružalac odbija poslat zahtev upućen njemu.
+Result<CollaborationRequest> rejectByProvider(CollaborationRequest request, {required User by}) => _move(
+  request,
+  to: RequestStatus.rejected,
+  role: Role.provider,
+  allowed: AccessPolicy.canActAsProvider(by, request),
+);
 
-Result<CollaborationRequest> moderatorReopen(CollaborationRequest request) =>
-    _move(request, to: RequestStatus.inProgress, by: Actor.moderator, rule: moderatorCanReopen(request));
+Result<CollaborationRequest> moderatorCancel(CollaborationRequest request, {required User by}) => _move(
+  request,
+  to: RequestStatus.cancelled,
+  role: Role.moderator,
+  allowed: AccessPolicy.canModerate(by),
+  rule: moderatorCanCancel(request),
+);
 
-/// Pravi novi zahtev u stanju „poslat“ ako pružalac prima zahteve, nudi uslugu i ima mesta.
+Result<CollaborationRequest> moderatorClose(CollaborationRequest request, {required User by}) => _move(
+  request,
+  to: RequestStatus.completed,
+  role: Role.moderator,
+  allowed: AccessPolicy.canModerate(by),
+  rule: moderatorCanClose(request),
+);
+
+Result<CollaborationRequest> moderatorReopen(CollaborationRequest request, {required User by}) => _move(
+  request,
+  to: RequestStatus.inProgress,
+  role: Role.moderator,
+  allowed: AccessPolicy.canModerate(by),
+  rule: moderatorCanReopen(request),
+);
+
+/// Pravi novi zahtev u stanju „poslat“ ako ga šalje klijent u svoje ime, pružalac prima zahteve,
+/// nudi uslugu i ima mesta.
 Result<CollaborationRequest> createRequest(
   NewRequest draft, {
+  required User by,
   required Provider provider,
   required Iterable<CollaborationRequest> existing,
   required RequestId id,
   required DateTime now,
 }) {
+  if (!AccessPolicy.canCreateRequest(by, draft)) return const Failure(NotAllowed());
   if (!isListedInCatalog(provider)) return const Failure(ProviderNotListed());
   if (!provider.services.contains(draft.service)) return Failure(ServiceNotOffered(draft.service));
   final note = noteWithinLength(draft.note);
@@ -72,3 +118,7 @@ Result<CollaborationRequest> createRequest(
     ),
   );
 }
+
+/// Prijava u aplikaciju: uspeh nosi korisnika, a pogrešna aplikacija daje [WrongApp].
+Result<User> signInTo(ClientApp app, User user) =>
+    AccessPolicy.canSignIn(user, app) ? Success(user) : Failure(WrongApp(app));

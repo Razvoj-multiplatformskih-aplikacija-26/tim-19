@@ -7,7 +7,7 @@ part 'admin_requests_state.dart';
 
 /// Posao moderatora: svi zahtevi, sortiranje, filter, pretraga, izbor i akcije koje menjaju stanje.
 final class AdminRequestsBloc extends Bloc<AdminRequestsEvent, AdminRequestsState> {
-  AdminRequestsBloc({required this.requests, required this.providers, required this.clients})
+  AdminRequestsBloc({required this.requests, required this.providers, required this.clients, required this.moderator})
     : super(const AdminRequestsLoading()) {
     on<LoadAdminRequests>((event, emit) => _load(emit));
     on<RetryAdminRequests>((event, emit) => _load(emit));
@@ -28,6 +28,9 @@ final class AdminRequestsBloc extends Bloc<AdminRequestsEvent, AdminRequestsStat
   final RequestsRepository requests;
   final ProvidersRepository providers;
   final ClientsRepository clients;
+
+  /// Prijavljeni moderator; akcije se proveravaju u njegovo ime.
+  final User moderator;
 
   void _whenLoaded(Emitter<AdminRequestsState> emit, AdminRequestsLoaded Function(AdminRequestsLoaded) change) {
     final current = state;
@@ -72,9 +75,9 @@ final class AdminRequestsBloc extends Bloc<AdminRequestsEvent, AdminRequestsStat
     final request = current.byId(event.id);
     if (request == null) return;
     final next = switch (event.action) {
-      ModeratorAction.cancel => moderatorCancel(request),
-      ModeratorAction.close => moderatorClose(request),
-      ModeratorAction.reopen => moderatorReopen(request),
+      ModeratorAction.cancel => moderatorCancel(request, by: moderator),
+      ModeratorAction.close => moderatorClose(request, by: moderator),
+      ModeratorAction.reopen => moderatorReopen(request, by: moderator),
     };
     if (next case Failure(:final error)) {
       emit(current.copyWith(notice: ModeratorActionRejected(event.action, error)));

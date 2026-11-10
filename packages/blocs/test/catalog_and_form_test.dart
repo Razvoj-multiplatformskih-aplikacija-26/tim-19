@@ -38,7 +38,7 @@ void main() {
   group('NewRequestBloc', () {
     late FakeRepository repo;
 
-    NewRequestBloc build() => NewRequestBloc(requests: repo, provider: marko, clientId: ana.id);
+    NewRequestBloc build() => NewRequestBloc(requests: repo, provider: marko, user: anaUser);
 
     setUp(() => repo = FakeRepository());
 

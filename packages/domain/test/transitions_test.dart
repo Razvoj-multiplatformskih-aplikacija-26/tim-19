@@ -11,18 +11,18 @@ void main() {
   const x = RequestStatus.cancelled;
 
   const allowed = {
-    Actor.client: {(s, x), (d, c), (d, p)},
-    Actor.provider: {(s, a), (s, r), (a, p), (p, d)},
-    Actor.moderator: {(s, x), (a, x), (p, x), (d, x), (d, c), (d, p)},
+    Role.client: {(s, x), (d, c), (d, p)},
+    Role.provider: {(s, a), (s, r), (a, p), (p, d)},
+    Role.moderator: {(s, x), (a, x), (p, x), (d, x), (d, c), (d, p)},
   };
 
-  for (final actor in Actor.values) {
-    group('${actor.name}:', () {
+  for (final role in Role.values) {
+    group('${role.name}:', () {
       for (final from in RequestStatus.values) {
         for (final to in RequestStatus.values) {
-          final expected = allowed[actor]!.contains((from, to));
+          final expected = allowed[role]!.contains((from, to));
           test('${from.name} -> ${to.name} ${expected ? 'je dozvoljen' : 'nije dozvoljen'}', () {
-            expect(canTransition(from, to, actor), expected);
+            expect(canTransition(from, to, role), expected);
           });
         }
       }
@@ -32,8 +32,8 @@ void main() {
   test('iz završnog stanja nema prelaza ni za koga', () {
     for (final from in RequestStatus.values.where((s) => s.isFinal)) {
       for (final to in RequestStatus.values) {
-        for (final actor in Actor.values) {
-          expect(canTransition(from, to, actor), isFalse, reason: '${from.name} -> ${to.name} (${actor.name})');
+        for (final role in Role.values) {
+          expect(canTransition(from, to, role), isFalse, reason: '${from.name} -> ${to.name} (${role.name})');
         }
       }
     }

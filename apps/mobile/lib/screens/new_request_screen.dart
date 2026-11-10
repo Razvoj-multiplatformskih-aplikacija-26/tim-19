@@ -19,7 +19,7 @@ class NewRequestScreen extends StatelessWidget {
     builder: (context, catalog, provider) {
       final deps = context.read<AppDependencies>();
       return BlocProvider(
-        create: (_) => NewRequestBloc(requests: deps.requests, provider: provider, clientId: deps.client.id),
+        create: (_) => NewRequestBloc(requests: deps.requests, provider: provider, user: deps.user),
         child: _NewRequestForm(provider: provider),
       );
     },

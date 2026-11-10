@@ -7,8 +7,7 @@ part 'requests_state.dart';
 
 /// Glavni tok klijenta: učitava njegove zahteve i otkazuje poslat zahtev.
 final class RequestsBloc extends Bloc<RequestsEvent, RequestsState> {
-  RequestsBloc({required this.requests, required this.providers, required this.clientId})
-    : super(const RequestsLoading()) {
+  RequestsBloc({required this.requests, required this.providers, required this.user}) : super(const RequestsLoading()) {
     on<LoadRequests>((event, emit) async {
       emit(const RequestsLoading());
       await _reload(emit);
@@ -26,14 +25,16 @@ final class RequestsBloc extends Bloc<RequestsEvent, RequestsState> {
 
   final RequestsRepository requests;
   final ProvidersRepository providers;
-  final ClientId clientId;
+
+  /// Prijavljeni klijent; vidi i otkazuje samo svoje zahteve.
+  final User user;
 
   Future<void> _onCancel(CancelRequest event, Emitter<RequestsState> emit) async {
     final current = state;
     if (current is! RequestsLoaded || current.isBusy) return;
     final request = current.byId(event.id);
     if (request == null) return;
-    final next = cancelByClient(request);
+    final next = cancelByClient(request, by: user);
     if (next case Failure(:final error)) {
       emit(current.copyWith(notice: CancelRejected(error)));
       return;
@@ -54,7 +55,7 @@ final class RequestsBloc extends Bloc<RequestsEvent, RequestsState> {
 
   Future<void> _reload(Emitter<RequestsState> emit, {RequestsNotice? notice}) async {
     try {
-      final mine = await requests.requestsOfClient(clientId);
+      final mine = await requests.requestsOfClient(user.asClient);
       if (mine.isEmpty) {
         emit(const RequestsEmpty());
         return;

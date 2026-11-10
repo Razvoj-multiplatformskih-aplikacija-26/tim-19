@@ -19,6 +19,7 @@ class BackofficeApp extends StatelessWidget {
         requests: dependencies.requests,
         providers: dependencies.providers,
         clients: dependencies.clients,
+        moderator: dependencies.moderator,
       )..add(const LoadAdminRequests()),
       child: MaterialApp(
         title: 'SoundConnect backoffice',

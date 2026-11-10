@@ -56,8 +56,8 @@ final class InMemoryBackend implements RequestsRepository, ProvidersRepository, 
     await _roundTrip();
     final index = _requests.indexWhere((r) => r.id == request.id);
     if (index < 0) return const Failure(NotFound());
-    // Neko je u međuvremenu promenio zahtev (u KT2 to proverava server).
-    if (_requests[index].status != from) return Failure(RequestClosed(_requests[index].status));
+    // Neko je u međuvremenu promenio zahtev.
+    if (_requests[index].status != from) return Failure(StaleRequest(_requests[index].status));
     _requests[index] = request;
     return Success(request);
   }

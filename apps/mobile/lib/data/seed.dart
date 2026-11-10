@@ -3,6 +3,9 @@ import 'package:domain/domain.dart';
 /// Prijavljeni klijent dok prijava ne stigne u KT2.
 const me = Client(id: ClientId('c-sava'), name: 'Sava Radošević');
 
+/// Nalog prijavljenog klijenta; ima isti identifikator kao profil [me].
+const meUser = User(id: UserId('c-sava'), name: 'Sava Radošević', role: Role.client);
+
 const otherClients = [
   Client(id: ClientId('c-mila'), name: 'Mila Jovanović'),
   Client(id: ClientId('c-luka'), name: 'Luka Ilić'),

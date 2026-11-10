@@ -28,6 +28,3 @@ key.properties
 # Logs and test output
 *.log
 coverage/
-
-# Claude Code
-.claude/

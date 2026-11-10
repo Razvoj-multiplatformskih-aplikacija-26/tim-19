@@ -24,23 +24,6 @@ final class Client {
   String toString() => 'Client(${id.value}, $name)';
 }
 
-@immutable
-final class Moderator {
-  const Moderator({required this.id, required this.name});
-
-  final ModeratorId id;
-  final String name;
-
-  @override
-  bool operator ==(Object other) => other is Moderator && other.id == id && other.name == name;
-
-  @override
-  int get hashCode => Object.hash(id, name);
-
-  @override
-  String toString() => 'Moderator(${id.value}, $name)';
-}
-
 /// Pružalac usluga: producent, audio inženjer ili vokalista.
 @immutable
 final class Provider {

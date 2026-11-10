@@ -1,6 +1,7 @@
 import 'package:domain/domain.dart';
 
-const moderator = Moderator(id: ModeratorId('m-kosta'), name: 'Kosta Baštić');
+/// Prijavljeni moderator dok prijava ne stigne u KT2.
+const moderator = User(id: UserId('m-kosta'), name: 'Kosta Baštić', role: Role.moderator);
 
 const seedClients = [
   Client(id: ClientId('c-sava'), name: 'Sava Radošević'),

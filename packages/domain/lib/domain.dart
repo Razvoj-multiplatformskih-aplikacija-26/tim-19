@@ -1,5 +1,5 @@
+export 'src/access_policy.dart';
 export 'src/actions.dart';
-export 'src/actor.dart';
 export 'src/catalog.dart';
 export 'src/errors.dart';
 export 'src/identifiers.dart';
@@ -9,3 +9,4 @@ export 'src/request_status.dart';
 export 'src/result.dart';
 export 'src/rules.dart';
 export 'src/transitions.dart';
+export 'src/user.dart';

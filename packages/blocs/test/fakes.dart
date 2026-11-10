@@ -5,6 +5,11 @@ final createdAt = DateTime.utc(2026, 11, 1, 12);
 const ana = Client(id: ClientId('c-ana'), name: 'Ana');
 const boris = Client(id: ClientId('c-boris'), name: 'Boris');
 
+/// Nalozi prijavljenih korisnika; klijent ima isti identifikator kao profil.
+const anaUser = User(id: UserId('c-ana'), name: 'Ana', role: Role.client);
+const borisUser = User(id: UserId('c-boris'), name: 'Boris', role: Role.client);
+const kosta = User(id: UserId('m-kosta'), name: 'Kosta', role: Role.moderator);
+
 const marko = Provider(
   id: ProviderId('p-marko'),
   name: 'Marko Miks',
@@ -43,11 +48,14 @@ CollaborationRequest request(
 
 /// Lažni port za testove, bez kašnjenja.
 final class FakeRepository implements RequestsRepository, ProvidersRepository, ClientsRepository {
-  FakeRepository({List<CollaborationRequest>? requests, this.providers = const [marko, hidden]})
+  FakeRepository({List<CollaborationRequest>? requests, this.providers = const [marko, hidden], this.session = anaUser})
     : requests = [...?requests];
 
   final List<CollaborationRequest> requests;
   final List<Provider> providers;
+
+  /// Korisnik u čije ime lažni port pravi zahteve (na serveru ga daje prijava).
+  final User session;
   int failNext = 0;
   int _nextId = 1;
 
@@ -82,6 +90,7 @@ final class FakeRepository implements RequestsRepository, ProvidersRepository, C
     final provider = providers.firstWhere((p) => p.id == draft.providerId);
     final result = createRequest(
       draft,
+      by: session,
       provider: provider,
       existing: requests,
       id: RequestId('new-${_nextId++}'),
@@ -96,6 +105,8 @@ final class FakeRepository implements RequestsRepository, ProvidersRepository, C
     _maybeFail();
     final index = requests.indexWhere((r) => r.id == request.id);
     if (index < 0) return const Failure(NotFound());
+    // Kao server: izmena nad zastarelim stanjem se odbija.
+    if (requests[index].status != from) return Failure(StaleRequest(requests[index].status));
     requests[index] = request;
     return Success(request);
   }

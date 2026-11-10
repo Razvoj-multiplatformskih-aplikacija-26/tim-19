@@ -8,7 +8,7 @@ import 'fakes.dart';
 void main() {
   late FakeRepository repo;
 
-  AdminRequestsBloc build() => AdminRequestsBloc(requests: repo, providers: repo, clients: repo);
+  AdminRequestsBloc build() => AdminRequestsBloc(requests: repo, providers: repo, clients: repo, moderator: kosta);
 
   Future<void> loaded(AdminRequestsBloc bloc) async {
     bloc.add(const LoadAdminRequests());

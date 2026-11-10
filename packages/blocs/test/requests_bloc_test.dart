@@ -8,7 +8,7 @@ import 'fakes.dart';
 void main() {
   late FakeRepository repo;
 
-  RequestsBloc build() => RequestsBloc(requests: repo, providers: repo, clientId: ana.id);
+  RequestsBloc build() => RequestsBloc(requests: repo, providers: repo, user: anaUser);
 
   setUp(() {
     repo = FakeRepository(
@@ -93,5 +93,34 @@ void main() {
           .having((s) => s.notice, 'notice', isA<CancelFailed>())
           .having((s) => s.isBusy, 'busy', false),
     ],
+  );
+
+  blocTest<RequestsBloc, RequestsState>(
+    'zahtev koji je pružalac u međuvremenu prihvatio: razlog je StaleRequest',
+    build: build,
+    // Klijent vidi zahtev kao poslat, a u portu je već prihvaćen.
+    seed: () => RequestsLoaded(items: [repo.requests.first], providers: const {}),
+    act: (bloc) {
+      repo.requests[0] = repo.requests[0].copyWith(status: RequestStatus.accepted);
+      bloc.add(const CancelRequest(RequestId('r-1')));
+    },
+    skip: 1,
+    expect: () => [
+      isA<RequestsLoaded>().having(
+        (s) => s.notice,
+        'notice',
+        const CancelRejected(StaleRequest(RequestStatus.accepted)),
+      ),
+    ],
+    verify: (_) => expect(repo.requests.first.status, RequestStatus.accepted),
+  );
+
+  blocTest<RequestsBloc, RequestsState>(
+    'tuđ zahtev ne može da se otkaže: NotAllowed iz AccessPolicy',
+    build: () => RequestsBloc(requests: repo, providers: repo, user: borisUser),
+    seed: () => RequestsLoaded(items: [repo.requests.first], providers: const {}),
+    act: (bloc) => bloc.add(const CancelRequest(RequestId('r-1'))),
+    expect: () => [isA<RequestsLoaded>().having((s) => s.notice, 'notice', const CancelRejected(NotAllowed()))],
+    verify: (_) => expect(repo.requests.first.status, RequestStatus.sent),
   );
 }

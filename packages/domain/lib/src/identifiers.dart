@@ -4,4 +4,4 @@ extension type const ClientId(String value) {}
 
 extension type const ProviderId(String value) {}
 
-extension type const ModeratorId(String value) {}
+extension type const UserId(String value) {}

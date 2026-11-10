@@ -38,3 +38,17 @@ CollaborationRequest request({
   createdAt: createdAt,
   revisions: revisions,
 );
+
+/// Klijent koji je poslao zahtev iz [request] (profil `c-1`).
+const owner = User(id: UserId('c-1'), name: 'Ana Klijent', role: Role.client);
+
+/// Drugi klijent; zahtev iz [request] mu nije svoj.
+const otherClient = User(id: UserId('c-9'), name: 'Boris Klijent', role: Role.client);
+
+/// Pružalac kome je upućen zahtev iz [request] (profil `p-1`).
+const addressee = User(id: UserId('p-1'), name: 'Marko Miks', role: Role.provider);
+
+/// Drugi pružalac; zahtev iz [request] mu nije upućen.
+const otherProvider = User(id: UserId('p-2'), name: 'Novi Producent', role: Role.provider);
+
+const moderator = User(id: UserId('m-1'), name: 'Kosta Moderator', role: Role.moderator);

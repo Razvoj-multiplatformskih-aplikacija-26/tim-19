@@ -6,12 +6,12 @@ import 'fixtures.dart';
 void main() {
   group('cancelByClient', () {
     test('otkazuje poslat zahtev', () {
-      expect(cancelByClient(request()).valueOrNull?.status, RequestStatus.cancelled);
+      expect(cancelByClient(request(), by: owner).valueOrNull?.status, RequestStatus.cancelled);
     });
 
     test('ne otkazuje prihvaćen zahtev', () {
       expect(
-        cancelByClient(request(status: RequestStatus.accepted)).errorOrNull,
+        cancelByClient(request(status: RequestStatus.accepted), by: owner).errorOrNull,
         const CancelNotAllowed(RequestStatus.accepted),
       );
     });
@@ -19,50 +19,56 @@ void main() {
 
   group('revizije', () {
     test('vraćanje na doradu povećava broj revizija', () {
-      final next = requestRevision(request(status: RequestStatus.delivered)).valueOrNull!;
+      final next = requestRevision(request(status: RequestStatus.delivered), by: owner).valueOrNull!;
       expect(next.status, RequestStatus.inProgress);
       expect(next.revisions, 1);
     });
 
     test('posle $maxRevisions revizije klijent može samo da potvrdi isporuku', () {
       final used = request(status: RequestStatus.delivered, revisions: maxRevisions);
-      expect(requestRevision(used).errorOrNull, const RevisionLimitReached(max: maxRevisions));
-      expect(confirmDelivery(used).valueOrNull?.status, RequestStatus.completed);
+      expect(requestRevision(used, by: owner).errorOrNull, const RevisionLimitReached(max: maxRevisions));
+      expect(confirmDelivery(used, by: owner).valueOrNull?.status, RequestStatus.completed);
     });
 
     test('revizija je moguća samo iz isporučenog zahteva', () {
       expect(
-        requestRevision(request(status: RequestStatus.accepted)).errorOrNull,
-        const InvalidTransition(from: RequestStatus.accepted, to: RequestStatus.inProgress, actor: Actor.client),
+        requestRevision(request(status: RequestStatus.accepted), by: owner).errorOrNull,
+        const InvalidTransition(from: RequestStatus.accepted, to: RequestStatus.inProgress, role: Role.client),
       );
     });
   });
 
   group('moderator', () {
     test('otkazuje zahtev u izradi', () {
-      expect(moderatorCancel(request(status: RequestStatus.inProgress)).valueOrNull?.status, RequestStatus.cancelled);
+      expect(
+        moderatorCancel(request(status: RequestStatus.inProgress), by: moderator).valueOrNull?.status,
+        RequestStatus.cancelled,
+      );
     });
 
     test('ne menja završen zahtev', () {
       expect(
-        moderatorCancel(request(status: RequestStatus.completed)).errorOrNull,
+        moderatorCancel(request(status: RequestStatus.completed), by: moderator).errorOrNull,
         const RequestClosed(RequestStatus.completed),
       );
     });
 
     test('zatvara isporučen zahtev kao završen', () {
-      expect(moderatorClose(request(status: RequestStatus.delivered)).valueOrNull?.status, RequestStatus.completed);
+      expect(
+        moderatorClose(request(status: RequestStatus.delivered), by: moderator).valueOrNull?.status,
+        RequestStatus.completed,
+      );
     });
 
     test('vraća isporučen zahtev u izradu bez trošenja revizije', () {
-      final next = moderatorReopen(request(status: RequestStatus.delivered, revisions: 1)).valueOrNull!;
+      final next = moderatorReopen(request(status: RequestStatus.delivered, revisions: 1), by: moderator).valueOrNull!;
       expect(next.status, RequestStatus.inProgress);
       expect(next.revisions, 1);
     });
 
     test('ne zatvara zahtev koji nije isporučen', () {
       expect(
-        moderatorClose(request(status: RequestStatus.inProgress)).errorOrNull,
+        moderatorClose(request(status: RequestStatus.inProgress), by: moderator).errorOrNull,
         const NotDelivered(RequestStatus.inProgress),
       );
     });
@@ -80,8 +86,14 @@ void main() {
       NewRequest draft, {
       Provider to = provider,
       List<CollaborationRequest>? existing,
-    }) =>
-        createRequest(draft, provider: to, existing: existing ?? const [], id: const RequestId('new'), now: createdAt);
+    }) => createRequest(
+      draft,
+      by: owner,
+      provider: to,
+      existing: existing ?? const [],
+      id: const RequestId('new'),
+      now: createdAt,
+    );
 
     test('pravi poslat zahtev sa očišćenom napomenom', () {
       final created = create(draft).valueOrNull!;

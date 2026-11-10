@@ -16,6 +16,11 @@ String domainErrorMessage(DomainError error) => switch (error) {
   RequestClosed(:final status) => 'Zahtev je u stanju „${status.label}“ i više se ne menja.',
   NotDelivered() => 'Akcija je moguća samo za isporučen zahtev.',
   NotFound() => 'Zahtev nije pronađen.',
+  NotAllowed() => 'Nemate pravo na ovu akciju.',
+  WrongApp(app: ClientApp.backoffice) => 'Backoffice je za moderatore. Klijenti i pružaoci koriste mobilnu aplikaciju.',
+  WrongApp(app: ClientApp.mobile) => 'Mobilna aplikacija je za klijente i pružaoce. Moderatori koriste backoffice.',
+  StaleRequest(:final current) => 'Zahtev je u međuvremenu promenjen; sada je u stanju „${current.label}“.',
+  ServerRejected() => 'Akcija trenutno nije moguća. Osvežite ekran i pokušajte ponovo.',
 };
 
 String failureMessage(Object cause) => switch (cause) {
