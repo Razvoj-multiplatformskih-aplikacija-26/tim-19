@@ -65,48 +65,116 @@ flowchart LR
 
 ## Stanje projekta
 
-KT1: mobilna aplikacija i backoffice rade nad istim domenskim paketom, nad lažnim podacima u memoriji. Svaki klijent ima svoje podatke i oni nisu sinhronizovani. Server, javni veb i rad bez mreže dolaze u KT2–KT4.
+KT2: server i baza su izvor istine za oba klijenta. Mobilna aplikacija i backoffice rade nad serverom, sa prijavom i ulogama; isti domenski paket proverava pravila na telefonu, na desktopu, u pregledaču i na serveru. Javni veb i rad bez mreže dolaze u KT3–KT4.
 
 | Folder | Šta je |
 | --- | --- |
-| `packages/domain` | čist Dart: model, stanja zahteva (`RequestStatus`), `canTransition`, pravila (`rules.dart`), akcije i portovi |
-| `packages/blocs` | čist Dart: `RequestsBloc` (glavni tok klijenta), `CatalogBloc`, `NewRequestBloc`, `AdminRequestsBloc` |
-| `packages/ui` | tema, font Inter, srpski nazivi i poruke grešaka, zajednički widget-i |
-| `apps/mobile` | Flutter za Android, uloga klijent |
+| `packages/domain` | čist Dart: model, stanja (`RequestStatus`), `canTransition`, pravila (`rules.dart`), prava (`access_policy.dart`), akcije i portovi |
+| `packages/api_contract` | ugovor klijenata i servera: putanje, DTO-i, kodovi grešaka, `problem+json`; bez domena, Flutter-a i `dart:io` |
+| `packages/api_mapping` | jedino mesto prevoda domen ↔ ugovor, u oba smera i za greške |
+| `packages/api_client` | HTTP implementacija portova, ista za mobilnu i backoffice, na VM-u i u pregledaču |
+| `packages/blocs` | čist Dart: `SessionBloc`, `LoginFormBloc`, `RequestsBloc`, `CatalogBloc`, `NewRequestBloc`, `AdminRequestsBloc` |
+| `packages/ui` | tema, font Inter, srpski nazivi i poruke grešaka, forma za prijavu, zajednički widget-i |
+| `apps/server` | Relic 1.2.0 i PostgreSQL; dbmate migracije, početni podaci, prijava (JWT, Argon2id) |
+| `apps/mobile` | Flutter za Android, uloge klijent i pružalac |
 | `apps/backoffice` | Flutter za Windows i veb, uloga moderator |
 
-Pravila (zahtev 3) su u `packages/domain/lib/src/rules.dart`, a konstante (`maxRevisions`, `maxNoteLength`, `defaultCapacity`) na vrhu tog fajla.
+Pravila su u `packages/domain/lib/src/rules.dart` (konstante `maxRevisions`, `maxNoteLength`, `defaultCapacity` na vrhu), a prava (ko sme u koju aplikaciju, koji zapis vidi, koju akciju pokreće) u `packages/domain/lib/src/access_policy.dart`.
 
-### Pokretanje
+### Pokretanje iz čistog klona
 
-Potrebni su Flutter 3.47 (Dart 3.13), Android SDK sa emulatorom ili telefonom za mobilnu aplikaciju i Visual Studio sa „Desktop development with C++“ za Windows verziju backoffice-a. Okruženje se proverava komandom `flutter doctor`.
+Potrebni su Docker Desktop, Flutter 3.47 (Dart 3.13), Android SDK sa emulatorom za mobilnu aplikaciju i Visual Studio sa „Desktop development with C++“ za Windows verziju backoffice-a. Na Windows-u Flutter traži uključen **Developer Mode** (`start ms-settings:developers`) jer aplikacije koriste plugin za bezbedno skladište.
 
-Iz korena repozitorijuma:
+1. Baza, šema, početni podaci i server, jednom komandom iz korena:
 
-```sh
-flutter pub get
-```
+   ```sh
+   copy .env.example .env      # Linux/macOS: cp .env.example .env
+   docker compose up -d
+   ```
 
-Mobilna aplikacija, na Android emulatoru ili telefonu:
+   Server je na `http://localhost:8080` (`/health` vraća `ok`). Početni podaci se upisuju pri prvom podizanju.
 
-```sh
-cd apps/mobile
-flutter run
-```
+2. Zavisnosti za Flutter, iz korena:
 
-Backoffice:
+   ```sh
+   flutter pub get
+   ```
 
-```sh
-cd apps/backoffice
-flutter run -d windows    # ili -d chrome
-```
+3. Mobilna aplikacija, na Android emulatoru (server nalazi kao `10.0.2.2:8080`, bez izmene koda):
 
-Testovi: `dart test` u `packages/domain` i `packages/blocs`, `flutter test` u `apps/mobile` i `apps/backoffice`.
+   ```sh
+   cd apps/mobile
+   flutter run
+   ```
+
+4. Backoffice na Windows-u i u pregledaču (port 8081 je u `CORS_ORIGINS`):
+
+   ```sh
+   cd apps/backoffice
+   flutter run -d windows
+   flutter run -d chrome --web-port 8081
+   ```
+
+Drugi server: `--dart-define=SERVER_URL=http://adresa:8080`. Bez servera, nad lažnim podacima u memoriji: `--dart-define=LAZNI_PODACI=true` (lozinka demo naloga je tada `demo`).
+
+### Demo nalozi
+
+Lozinka svih naloga je `DEMO_PASSWORD` iz `.env` (u `.env.example`: `soundconnect-demo`); u bazi je samo Argon2id heš.
+
+| Nalog | Korisnik | Uloga | Aplikacija |
+| --- | --- | --- | --- |
+| `klijent1` | Sava Radošević | klijent | mobilna |
+| `klijent2` | Mila Jovanović | klijent | mobilna |
+| `pruzalac1` | Marko „Mix“ Petrović | pružalac | mobilna |
+| `moderator1` | Kosta Baštić | moderator | backoffice |
+
+Korisnik mobilne aplikacije u backoffice-u (i moderator u mobilnoj) dobija poruku zašto ne može da uđe.
+
+### Portovi i alati
+
+| Šta | Adresa |
+| --- | --- |
+| Server | `http://localhost:8080` |
+| PostgreSQL | `localhost:5435` |
+| Backoffice u pregledaču | `http://localhost:8081` |
+| Adminer (pregled baze) | `http://localhost:8082`, posle `docker compose --profile tools up -d` |
+
+- Poziv mimo aplikacije (pravila, prava, trka za poslednje mesto): `powershell -ExecutionPolicy Bypass -File apps\server\tool\demo.ps1`.
+- Vraćanje početnih podataka: `docker compose down -v`, pa `docker compose up -d`.
+- Istek prijave za proveru: `SESSION_TTL_MINUTES=1` u `.env`, pa `docker compose up -d server`.
+- Server nedostupan: `docker compose stop server`; oba klijenta kažu da server nije dostupan.
+
+### Testovi
+
+Iz korena `flutter analyze`, a testovi iz foldera svakog dela:
+
+| Folder | Komanda |
+| --- | --- |
+| `packages/domain`, `blocs`, `api_contract`, `api_mapping`, `api_client` | `dart test` (VM i pregledač) |
+| `apps/server` | `dart test` (traži bazu: `docker compose up -d db`) |
+| `apps/mobile`, `apps/backoffice` | `flutter test` |
+
+Testovi servera rade nad posebnim bazama `soundconnect_test_*` u istom kontejneru, sa istim migracijama.
+
+### Odluke
+
+| Pitanje | Izbor | Odbačeno |
+| --- | --- | --- |
+| Pravilo koje zavisi od drugih | ograničen broj: pružalac ima najviše `capacity` aktivnih zahteva | preklapanje u vremenu (tema nema termine) |
+| Ko ga konačno čuva | server, u transakciji: red pružaoca `FOR UPDATE`, pa pravilo iz domena, pa upis | ograničenje u bazi (pravilo bi postojalo dvaput); brava u memoriji (ne radi sa više servera) |
+| Šta vidi zakasneli | 409 `no-free-slots` sa granicom; ista poruka kao na klijentu, pa ponovo učitan katalog | lista čekanja ili tiho ponavljanje |
+| Šta koja uloga vidi | klijent svoje zahteve, pružalac upućene njemu i imena tih klijenata, moderator sve | klijent vidi tuđe zahteve kod pružaoca |
+| Novac, vreme, stanja na mreži | ceo broj evra, ISO 8601 u UTC, stanja kao tekst (`in-progress`) | `double`, lokalno vreme, brojevi za stanja |
+| Deo velike liste | `limit`/`offset` sa ukupnim brojem; backoffice po 50, „Učitaj još“ | sve odjednom; kursor |
+| Tuđa promena | posle osvežavanja ekrana i posle odbijene akcije | WebSocket, periodično prozivanje |
+| Pregledač | HttpOnly kolačić umesto tokena, CORS samo za `CORS_ORIGINS` | token u `localStorage` (dostupan skriptama) |
+| Bez prijave | samo katalog (u KT4 ide na javni veb) | ceo API iza prijave |
+| Ko menja tuđi zapis | moderator: otkazuje nezavršen, zatvara i vraća u izradu isporučen; pružalac: prihvata i odbija upućen njemu | klijent menja tuđi zahtev |
+| Spoljni servis | obaveštenje pružaocu o novom zahtevu, iza `NotificationPort` na serveru; ključ samo u `.env` servera, za KT2 lažna implementacija | poziv servisa iz aplikacije (ključ bi bio na uređaju) |
 
 ### Demo stanja ekrana
 
-- Mobilna: kartica **Podešavanja** ima prekidače „Sledeći zahtev vraća grešku“ i „Sledeća lista zahteva je prazna“.
-- Backoffice: meni sa ikonicom epruvete u gornjem desnom uglu.
+Nad lažnim podacima (`LAZNI_PODACI=true`): u mobilnoj kartica **Podešavanja** ima prekidače „Sledeći zahtev vraća grešku“, „Sledeća lista zahteva je prazna“ i „Prijava ističe sada“; u backoffice-u je meni sa ikonicom epruvete. Nad serverom se greška veze pokazuje zaustavljanjem servera.
 
 ### Backoffice tastaturom
 
