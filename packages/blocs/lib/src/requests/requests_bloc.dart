@@ -2,6 +2,8 @@ import 'package:bloc/bloc.dart';
 import 'package:domain/domain.dart';
 import 'package:equatable/equatable.dart';
 
+import '../limits.dart';
+
 part 'requests_event.dart';
 part 'requests_state.dart';
 
@@ -41,7 +43,7 @@ final class RequestsBloc extends Bloc<RequestsEvent, RequestsState> {
     }
     emit(current.copyWith(notice: null, busyId: event.id));
     try {
-      final saved = await requests.update(next.valueOrNull!, from: request.status);
+      final saved = await requests.apply(RequestAction.cancel, request.id, from: request.status);
       switch (saved) {
         case Success(:final value):
           await _reload(emit, notice: RequestCancelled(value));
@@ -55,14 +57,16 @@ final class RequestsBloc extends Bloc<RequestsEvent, RequestsState> {
 
   Future<void> _reload(Emitter<RequestsState> emit, {RequestsNotice? notice}) async {
     try {
-      final mine = await requests.requestsOfClient(user.asClient);
+      final mine = (await requests.requests(limit: maxListed)).items;
       if (mine.isEmpty) {
         emit(const RequestsEmpty());
         return;
       }
-      final all = await providers.allProviders();
+      final entries = await providers.catalog();
       final sorted = [...mine]..sort((a, b) => b.createdAt.compareTo(a.createdAt));
-      emit(RequestsLoaded(items: sorted, providers: {for (final p in all) p.id: p}, notice: notice));
+      emit(
+        RequestsLoaded(items: sorted, providers: {for (final e in entries) e.provider.id: e.provider}, notice: notice),
+      );
     } on Exception catch (cause) {
       emit(RequestsError(cause));
     }

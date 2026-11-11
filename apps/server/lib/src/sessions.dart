@@ -21,7 +21,6 @@ final currentSession = ContextProperty<Session>('session');
 
 const _signInRequired = ProblemDto(status: 401, code: ErrorCodes.signInRequired, title: 'Sign in required');
 const _sessionExpired = ProblemDto(status: 401, code: ErrorCodes.sessionExpired, title: 'Session expired');
-const _invalidCredentials = ProblemDto(status: 401, code: ErrorCodes.invalidCredentials, title: 'Invalid credentials');
 const _algorithm = JWTAlgorithm.HS256;
 
 /// Prijava, provera prijave pri svakom pozivu i odjava.
@@ -69,7 +68,7 @@ final class SessionHandlers {
     final app = appFromDto(body.app) ?? (throw FormatException('Nepoznata aplikacija', body.app));
     final account = await accounts.account(body.username);
     final matches = await verifyPassword(body.password, account?.passwordHash ?? await _noAccountHash);
-    if (account == null || !matches) return _unauthorized(_invalidCredentials);
+    if (account == null || !matches) return _unauthorized(const InvalidCredentials().toProblem());
     if (signInTo(app, account.user) case Failure(:final error)) return problem(error);
     final user = account.user;
     final token = JWT({

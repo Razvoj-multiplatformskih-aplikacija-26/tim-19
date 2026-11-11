@@ -111,27 +111,23 @@ final class RequestHandlers {
   }
 
   /// Otkazivanje: klijent svoj poslat zahtev, moderator svaki nezavršen. Uloga iz prijave bira akciju iz domena.
-  Future<Response> cancel(Request request) =>
-      _act(request, (r, u) => u.role == Role.moderator ? moderatorCancel(r, by: u) : cancelByClient(r, by: u));
+  Future<Response> cancel(Request request) => _act(request, RequestAction.cancel);
 
-  Future<Response> complete(Request request) => _act(request, (r, u) => confirmDelivery(r, by: u));
+  Future<Response> complete(Request request) => _act(request, RequestAction.complete);
 
-  Future<Response> revise(Request request) => _act(request, (r, u) => requestRevision(r, by: u));
+  Future<Response> revise(Request request) => _act(request, RequestAction.revise);
 
-  Future<Response> accept(Request request) => _act(request, (r, u) => acceptByProvider(r, by: u));
+  Future<Response> accept(Request request) => _act(request, RequestAction.accept);
 
-  Future<Response> reject(Request request) => _act(request, (r, u) => rejectByProvider(r, by: u));
+  Future<Response> reject(Request request) => _act(request, RequestAction.reject);
 
-  Future<Response> close(Request request) => _act(request, (r, u) => moderatorClose(r, by: u));
+  Future<Response> close(Request request) => _act(request, RequestAction.close);
 
-  Future<Response> reopen(Request request) => _act(request, (r, u) => moderatorReopen(r, by: u));
+  Future<Response> reopen(Request request) => _act(request, RequestAction.reopen);
 
   /// Akcija nad zahtevom u transakciji, sa zaključanim redom zahteva. Redosled: postoji li, sme li da ga vidi,
   /// da li je u stanju koje je korisnik video (inače `stale-request`), pa akcija iz domena i upis.
-  Future<Response> _act(
-    Request request,
-    Result<CollaborationRequest> Function(CollaborationRequest request, User user) action,
-  ) async {
+  Future<Response> _act(Request request, RequestAction action) async {
     final user = _user(request);
     final id = _requestId(request);
     final seen = statusFromDtoStrict(ActionDto.fromJson(await readObject(request)).from);
@@ -141,7 +137,7 @@ final class RequestHandlers {
       if (stored == null) return const Failure<CollaborationRequest>(NotFound());
       if (!AccessPolicy.canView(user, stored)) return const Failure<CollaborationRequest>(NotAllowed());
       if (stored.status != seen) return Failure<CollaborationRequest>(StaleRequest(stored.status));
-      final next = action(stored, user);
+      final next = applyAction(action, stored, by: user);
       if (next case Success(:final value)) await store.updateRequest(value, now: _now());
       return next;
     });

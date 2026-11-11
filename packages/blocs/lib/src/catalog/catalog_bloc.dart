@@ -5,9 +5,10 @@ import 'package:equatable/equatable.dart';
 part 'catalog_event.dart';
 part 'catalog_state.dart';
 
-/// Katalog verifikovanih pružalaca sa filterom po žanru i usluzi.
+/// Katalog verifikovanih pružalaca sa filterom po žanru i usluzi. Slobodna mesta dolaze iz porta
+/// (računa ih server nad zahtevima svih klijenata), jer klijent tuđe zahteve ne vidi.
 final class CatalogBloc extends Bloc<CatalogEvent, CatalogState> {
-  CatalogBloc({required this.providers, required this.requests}) : super(const CatalogLoading()) {
+  CatalogBloc({required this.providers}) : super(const CatalogLoading()) {
     on<LoadCatalog>((event, emit) => _load(emit));
     on<RetryCatalog>((event, emit) => _load(emit));
     on<CatalogFilterChanged>((event, emit) {
@@ -17,18 +18,15 @@ final class CatalogBloc extends Bloc<CatalogEvent, CatalogState> {
   }
 
   final ProvidersRepository providers;
-  final RequestsRepository requests;
 
   Future<void> _load(Emitter<CatalogState> emit) async {
     final previous = state;
     emit(const CatalogLoading());
     try {
-      final all = await providers.allProviders();
-      final taken = await requests.allRequests();
+      final entries = await providers.catalog();
       emit(
         CatalogLoaded(
-          providers: all,
-          requests: taken,
+          entries: entries,
           genre: previous is CatalogLoaded ? previous.genre : null,
           service: previous is CatalogLoaded ? previous.service : null,
         ),

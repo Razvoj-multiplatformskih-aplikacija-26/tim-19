@@ -3,12 +3,15 @@ import 'package:domain/domain.dart';
 import 'seed.dart';
 
 /// Lažna implementacija portova u memoriji backoffice-a, sa kašnjenjem i prekidačem za grešku.
-/// Podaci nisu sinhronizovani sa mobilnom aplikacijom.
+/// Podaci nisu sinhronizovani sa mobilnom aplikacijom; pravo, pravilo i prelaz proverava domen.
 final class InMemoryBackend implements RequestsRepository, ProvidersRepository, ClientsRepository {
-  InMemoryBackend({DateTime? now, this.latency = const Duration(milliseconds: 500)})
+  InMemoryBackend({DateTime? now, this.latency = const Duration(milliseconds: 500), this.session = moderator})
     : _requests = seedRequests(now ?? DateTime.now());
 
   final Duration latency;
+
+  /// Korisnik u čije ime lažni port radi; na serveru ga daje prijava.
+  final User session;
   final List<CollaborationRequest> _requests;
 
   /// Koliko sledećih poziva baca grešku.
@@ -26,19 +29,17 @@ final class InMemoryBackend implements RequestsRepository, ProvidersRepository, 
   }
 
   @override
-  Future<List<CollaborationRequest>> requestsOfClient(ClientId clientId) async {
-    await _roundTrip();
-    return _requests.where((r) => r.clientId == clientId).toList();
-  }
-
-  @override
-  Future<List<CollaborationRequest>> allRequests() async {
+  Future<RequestPage> requests({RequestStatus? status, int offset = 0, int limit = 50}) async {
     await _roundTrip();
     if (emptyResponses > 0) {
       emptyResponses--;
-      return const [];
+      return const RequestPage(items: [], total: 0);
     }
-    return [..._requests];
+    final visible = [
+      for (final r in _requests)
+        if (AccessPolicy.canView(session, r) && (status == null || r.status == status)) r,
+    ]..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    return RequestPage(items: visible.skip(offset).take(limit).toList(), total: visible.length, offset: offset);
   }
 
   @override
@@ -49,29 +50,36 @@ final class InMemoryBackend implements RequestsRepository, ProvidersRepository, 
 
   /// Zahteve pravi klijent u mobilnoj aplikaciji, ne moderator.
   @override
-  Future<Result<CollaborationRequest>> create(NewRequest draft) => throw UnsupportedError('Moderator ne pravi zahteve');
+  Future<Result<CollaborationRequest>> create(NewRequest draft) async {
+    await _roundTrip();
+    return const Failure(NotAllowed());
+  }
 
   @override
-  Future<Result<CollaborationRequest>> update(CollaborationRequest request, {required RequestStatus from}) async {
+  Future<Result<CollaborationRequest>> apply(RequestAction action, RequestId id, {required RequestStatus from}) async {
     await _roundTrip();
-    final index = _requests.indexWhere((r) => r.id == request.id);
+    final index = _requests.indexWhere((r) => r.id == id);
     if (index < 0) return const Failure(NotFound());
+    final stored = _requests[index];
     // Neko je u međuvremenu promenio zahtev.
-    if (_requests[index].status != from) return Failure(StaleRequest(_requests[index].status));
-    _requests[index] = request;
-    return Success(request);
+    if (stored.status != from) return Failure(StaleRequest(stored.status));
+    final next = applyAction(action, stored, by: session);
+    if (next case Success(:final value)) _requests[index] = value;
+    return next;
+  }
+
+  /// Moderator vidi sve pružaoce, i neverifikovane.
+  @override
+  Future<List<CatalogEntry>> catalog() async {
+    await _roundTrip();
+    return [for (final p in seedProviders) CatalogEntry(provider: p, freeSlots: freeSlots(p, _requests))];
   }
 
   @override
-  Future<List<Provider>> allProviders() async {
+  Future<CatalogEntry?> entry(ProviderId id) async {
     await _roundTrip();
-    return seedProviders;
-  }
-
-  @override
-  Future<Provider?> providerById(ProviderId id) async {
-    await _roundTrip();
-    return seedProviders.where((p) => p.id == id).firstOrNull;
+    final provider = seedProviders.where((p) => p.id == id).firstOrNull;
+    return provider == null ? null : CatalogEntry(provider: provider, freeSlots: freeSlots(provider, _requests));
   }
 
   @override

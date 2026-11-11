@@ -47,14 +47,16 @@ CollaborationRequest request(
 );
 
 /// Lažni port za testove, bez kašnjenja.
+/// Lažni port za testove, bez kašnjenja. Radi kao mali server: pravo, pravilo i prelaz proverava domen.
 final class FakeRepository implements RequestsRepository, ProvidersRepository, ClientsRepository {
   FakeRepository({List<CollaborationRequest>? requests, this.providers = const [marko, hidden], this.session = anaUser})
-    : requests = [...?requests];
+    : stored = [...?requests];
 
-  final List<CollaborationRequest> requests;
+  /// Zahtevi „u bazi“ lažnog porta.
+  final List<CollaborationRequest> stored;
   final List<Provider> providers;
 
-  /// Korisnik u čije ime lažni port pravi zahteve (na serveru ga daje prijava).
+  /// Korisnik u čije ime lažni port radi (na serveru ga daje prijava).
   final User session;
   int failNext = 0;
   int _nextId = 1;
@@ -67,21 +69,19 @@ final class FakeRepository implements RequestsRepository, ProvidersRepository, C
   }
 
   @override
-  Future<List<CollaborationRequest>> requestsOfClient(ClientId clientId) async {
+  Future<RequestPage> requests({RequestStatus? status, int offset = 0, int limit = 50}) async {
     _maybeFail();
-    return requests.where((r) => r.clientId == clientId).toList();
-  }
-
-  @override
-  Future<List<CollaborationRequest>> allRequests() async {
-    _maybeFail();
-    return [...requests];
+    final visible = [
+      for (final r in stored)
+        if (AccessPolicy.canView(session, r) && (status == null || r.status == status)) r,
+    ];
+    return RequestPage(items: visible.skip(offset).take(limit).toList(), total: visible.length, offset: offset);
   }
 
   @override
   Future<CollaborationRequest?> getById(RequestId id) async {
     _maybeFail();
-    return requests.where((r) => r.id == id).firstOrNull;
+    return stored.where((r) => r.id == id).firstOrNull;
   }
 
   @override
@@ -92,33 +92,37 @@ final class FakeRepository implements RequestsRepository, ProvidersRepository, C
       draft,
       by: session,
       provider: provider,
-      existing: requests,
+      existing: stored,
       id: RequestId('new-${_nextId++}'),
       now: createdAt,
     );
-    if (result case Success(:final value)) requests.add(value);
+    if (result case Success(:final value)) stored.add(value);
     return result;
   }
 
   @override
-  Future<Result<CollaborationRequest>> update(CollaborationRequest request, {required RequestStatus from}) async {
+  Future<Result<CollaborationRequest>> apply(RequestAction action, RequestId id, {required RequestStatus from}) async {
     _maybeFail();
-    final index = requests.indexWhere((r) => r.id == request.id);
+    final index = stored.indexWhere((r) => r.id == id);
     if (index < 0) return const Failure(NotFound());
     // Kao server: izmena nad zastarelim stanjem se odbija.
-    if (requests[index].status != from) return Failure(StaleRequest(requests[index].status));
-    requests[index] = request;
-    return Success(request);
+    if (stored[index].status != from) return Failure(StaleRequest(stored[index].status));
+    final next = applyAction(action, stored[index], by: session);
+    if (next case Success(:final value)) stored[index] = value;
+    return next;
   }
 
   @override
-  Future<List<Provider>> allProviders() async {
+  Future<List<CatalogEntry>> catalog() async {
     _maybeFail();
-    return providers;
+    return [for (final p in providers) CatalogEntry(provider: p, freeSlots: freeSlots(p, stored))];
   }
 
   @override
-  Future<Provider?> providerById(ProviderId id) async => providers.where((p) => p.id == id).firstOrNull;
+  Future<CatalogEntry?> entry(ProviderId id) async {
+    final p = providers.where((p) => p.id == id).firstOrNull;
+    return p == null ? null : CatalogEntry(provider: p, freeSlots: freeSlots(p, stored));
+  }
 
   @override
   Future<List<Client>> allClients() async {

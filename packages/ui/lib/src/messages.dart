@@ -21,9 +21,14 @@ String domainErrorMessage(DomainError error) => switch (error) {
   WrongApp(app: ClientApp.mobile) => 'Mobilna aplikacija je za klijente i pružaoce. Moderatori koriste backoffice.',
   StaleRequest(:final current) => 'Zahtev je u međuvremenu promenjen; sada je u stanju „${current.label}“.',
   ServerRejected() => 'Akcija trenutno nije moguća. Osvežite ekran i pokušajte ponovo.',
+  InvalidCredentials() => 'Pogrešno korisničko ime ili lozinka.',
 };
 
 String failureMessage(Object cause) => switch (cause) {
-  RepositoryException() => 'Veza nije uspela. Proverite mrežu i pokušajte ponovo.',
+  RepositoryException(failure: RepositoryFailure.unreachable) =>
+    'Server nije dostupan. Proverite mrežu i pokušajte ponovo.',
+  RepositoryException(failure: RepositoryFailure.sessionExpired) => 'Prijava je istekla. Prijavite se ponovo.',
+  RepositoryException(failure: RepositoryFailure.serverError) =>
+    'Server trenutno ne odgovara ispravno. Pokušajte ponovo malo kasnije.',
   _ => 'Došlo je do neočekivane greške.',
 };

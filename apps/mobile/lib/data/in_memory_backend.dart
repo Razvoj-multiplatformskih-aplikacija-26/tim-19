@@ -3,13 +3,14 @@ import 'package:domain/domain.dart';
 import 'seed.dart';
 
 /// Lažna implementacija portova u memoriji, sa kašnjenjem i prekidačima za grešku i prazan odgovor.
+/// Radi kao mali server: pravo, pravilo i prelaz proverava isti domenski kôd.
 final class InMemoryBackend implements RequestsRepository, ProvidersRepository {
   InMemoryBackend({DateTime? now, this.latency = const Duration(milliseconds: 700), this.session = meUser})
     : _requests = seedRequests(now ?? DateTime.now());
 
   final Duration latency;
 
-  /// Korisnik u čije ime lažni port pravi zahteve; na serveru ga daje prijava.
+  /// Korisnik u čije ime lažni port radi; na serveru ga daje prijava.
   final User session;
   final List<CollaborationRequest> _requests;
   final List<Provider> _providers = [...seedProviders];
@@ -36,22 +37,20 @@ final class InMemoryBackend implements RequestsRepository, ProvidersRepository {
   }
 
   @override
-  Future<List<CollaborationRequest>> requestsOfClient(ClientId clientId) async {
+  Future<RequestPage> requests({RequestStatus? status, int offset = 0, int limit = 50}) async {
     await _roundTrip();
-    if (_answersEmpty()) return const [];
-    return _requests.where((r) => r.clientId == clientId).toList();
-  }
-
-  @override
-  Future<List<CollaborationRequest>> allRequests() async {
-    await _roundTrip();
-    return [..._requests];
+    if (_answersEmpty()) return const RequestPage(items: [], total: 0);
+    final visible = [
+      for (final r in _requests)
+        if (AccessPolicy.canView(session, r) && (status == null || r.status == status)) r,
+    ]..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    return RequestPage(items: visible.skip(offset).take(limit).toList(), total: visible.length, offset: offset);
   }
 
   @override
   Future<CollaborationRequest?> getById(RequestId id) async {
     await _roundTrip();
-    return _requests.where((r) => r.id == id).firstOrNull;
+    return _requests.where((r) => r.id == id && AccessPolicy.canView(session, r)).firstOrNull;
   }
 
   @override
@@ -72,26 +71,32 @@ final class InMemoryBackend implements RequestsRepository, ProvidersRepository {
   }
 
   @override
-  Future<Result<CollaborationRequest>> update(CollaborationRequest request, {required RequestStatus from}) async {
+  Future<Result<CollaborationRequest>> apply(RequestAction action, RequestId id, {required RequestStatus from}) async {
     await _roundTrip();
-    final index = _requests.indexWhere((r) => r.id == request.id);
+    final index = _requests.indexWhere((r) => r.id == id);
     if (index < 0) return const Failure(NotFound());
     final stored = _requests[index];
+    if (!AccessPolicy.canView(session, stored)) return const Failure(NotAllowed());
     // Neko je u međuvremenu promenio zahtev.
     if (stored.status != from) return Failure(StaleRequest(stored.status));
-    _requests[index] = request;
-    return Success(request);
+    final next = applyAction(action, stored, by: session);
+    if (next case Success(:final value)) _requests[index] = value;
+    return next;
   }
 
   @override
-  Future<List<Provider>> allProviders() async {
+  Future<List<CatalogEntry>> catalog() async {
     await _roundTrip();
-    return [..._providers];
+    return [
+      for (final p in _providers.where(isListedInCatalog))
+        CatalogEntry(provider: p, freeSlots: freeSlots(p, _requests)),
+    ];
   }
 
   @override
-  Future<Provider?> providerById(ProviderId id) async {
+  Future<CatalogEntry?> entry(ProviderId id) async {
     await _roundTrip();
-    return _providers.where((p) => p.id == id).firstOrNull;
+    final provider = _providers.where(isListedInCatalog).where((p) => p.id == id).firstOrNull;
+    return provider == null ? null : CatalogEntry(provider: provider, freeSlots: freeSlots(provider, _requests));
   }
 }

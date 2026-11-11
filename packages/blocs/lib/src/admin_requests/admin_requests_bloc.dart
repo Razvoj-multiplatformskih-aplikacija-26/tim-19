@@ -2,6 +2,8 @@ import 'package:bloc/bloc.dart';
 import 'package:domain/domain.dart';
 import 'package:equatable/equatable.dart';
 
+import '../limits.dart';
+
 part 'admin_requests_event.dart';
 part 'admin_requests_state.dart';
 
@@ -41,12 +43,12 @@ final class AdminRequestsBloc extends Bloc<AdminRequestsEvent, AdminRequestsStat
     final previous = state;
     emit(const AdminRequestsLoading());
     try {
-      final all = await requests.allRequests();
+      final all = (await requests.requests(limit: maxListed)).items;
       if (all.isEmpty) {
         emit(const AdminRequestsEmpty());
         return;
       }
-      final allProviders = await providers.allProviders();
+      final allProviders = [for (final e in await providers.catalog()) e.provider];
       final allClients = await clients.allClients();
       final loaded = AdminRequestsLoaded(
         requests: all,
@@ -85,7 +87,7 @@ final class AdminRequestsBloc extends Bloc<AdminRequestsEvent, AdminRequestsStat
     }
     emit(current.copyWith(busyId: event.id));
     try {
-      final saved = await requests.update(next.valueOrNull!, from: request.status);
+      final saved = await requests.apply(event.action.asRequestAction, request.id, from: request.status);
       // Za vreme čekanja moderator je mogao da promeni izbor ili filter.
       final latest = state is AdminRequestsLoaded ? state as AdminRequestsLoaded : current;
       switch (saved) {

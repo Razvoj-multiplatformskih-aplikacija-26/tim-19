@@ -213,3 +213,8 @@ final class ServerRejected extends DomainError {
   @override
   String toString() => 'ServerRejected($code)';
 }
+
+/// Pogrešno korisničko ime ili lozinka; namerno se ne kaže šta od toga.
+final class InvalidCredentials extends DomainError {
+  const InvalidCredentials();
+}

@@ -19,6 +19,7 @@ void main() {
 
   setUp(() {
     repo = FakeRepository(
+      session: kosta,
       requests: [
         request('r-1', RequestStatus.sent, client: ana),
         request('r-2', RequestStatus.delivered, client: boris, minutes: 10),
@@ -36,7 +37,7 @@ void main() {
 
   blocTest<AdminRequestsBloc, AdminRequestsState>(
     'prazan prikaz bez zahteva',
-    setUp: () => repo.requests.clear(),
+    setUp: () => repo.stored.clear(),
     build: build,
     act: loaded,
     expect: () => [const AdminRequestsLoading(), const AdminRequestsEmpty()],
@@ -84,7 +85,7 @@ void main() {
       expect(state.selected?.status, RequestStatus.completed);
       expect(state.notice, isA<ModeratorActionDone>());
       expect(state.isBusy, isFalse);
-      expect(repo.requests[1].status, RequestStatus.completed);
+      expect(repo.stored[1].status, RequestStatus.completed);
     },
   );
 
@@ -100,14 +101,14 @@ void main() {
         stateOf(bloc).notice,
         const ModeratorActionRejected(ModeratorAction.cancel, RequestClosed(RequestStatus.completed)),
       );
-      expect(repo.requests[2].status, RequestStatus.completed);
+      expect(repo.stored[2].status, RequestStatus.completed);
     },
   );
 
   test('dostupne akcije prate pravila iz domena', () {
-    final state = AdminRequestsLoaded(requests: repo.requests, providers: const {}, clients: const {});
-    final delivered = repo.requests[1];
-    final sent = repo.requests[0];
+    final state = AdminRequestsLoaded(requests: repo.stored, providers: const {}, clients: const {});
+    final delivered = repo.stored[1];
+    final sent = repo.stored[0];
     expect(ModeratorAction.values.where((a) => state.canApply(a, delivered)), ModeratorAction.values);
     expect(ModeratorAction.values.where((a) => state.canApply(a, sent)), [ModeratorAction.cancel]);
   });

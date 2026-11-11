@@ -122,3 +122,20 @@ Result<CollaborationRequest> createRequest(
 /// Prijava u aplikaciju: uspeh nosi korisnika, a pogrešna aplikacija daje [WrongApp].
 Result<User> signInTo(ClientApp app, User user) =>
     AccessPolicy.canSignIn(user, app) ? Success(user) : Failure(WrongApp(app));
+
+/// Akcije nad postojećim zahtevom, kako ih šalje klijent i prima server.
+enum RequestAction { cancel, complete, revise, accept, reject, close, reopen }
+
+/// Akcija iz domena za [action] u ime [by]. Otkazivanje zavisi od uloge: moderator otkazuje svaki nezavršen
+/// zahtev, klijent samo svoj poslat. Isto koriste klijenti (provera pre slanja) i server (konačna odluka).
+Result<CollaborationRequest> applyAction(RequestAction action, CollaborationRequest request, {required User by}) =>
+    switch (action) {
+      RequestAction.cancel when by.role == Role.moderator => moderatorCancel(request, by: by),
+      RequestAction.cancel => cancelByClient(request, by: by),
+      RequestAction.complete => confirmDelivery(request, by: by),
+      RequestAction.revise => requestRevision(request, by: by),
+      RequestAction.accept => acceptByProvider(request, by: by),
+      RequestAction.reject => rejectByProvider(request, by: by),
+      RequestAction.close => moderatorClose(request, by: by),
+      RequestAction.reopen => moderatorReopen(request, by: by),
+    };

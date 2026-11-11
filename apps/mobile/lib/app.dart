@@ -56,9 +56,7 @@ class _SoundConnectAppState extends State<SoundConnectApp> {
                 RequestsBloc(requests: deps.requests, providers: deps.providers, user: deps.user)
                   ..add(const LoadRequests()),
           ),
-          BlocProvider(
-            create: (_) => CatalogBloc(providers: deps.providers, requests: deps.requests)..add(const LoadCatalog()),
-          ),
+          BlocProvider(create: (_) => CatalogBloc(providers: deps.providers)..add(const LoadCatalog())),
         ],
         child: BlocListener<RequestsBloc, RequestsState>(
           listenWhen: (previous, current) => current is RequestsLoaded && current.notice != null,

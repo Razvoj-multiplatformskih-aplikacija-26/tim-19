@@ -157,3 +157,22 @@ final class NewRequest {
   @override
   int get hashCode => Object.hash(clientId, providerId, service, note);
 }
+
+/// Pružalac u katalogu sa brojem slobodnih mesta. Mesta računa onaj ko vidi zahteve svih klijenata (server,
+/// ili lažni port u testovima) istim pravilom iz domena ([freeSlots] u `rules.dart`).
+@immutable
+final class CatalogEntry {
+  const CatalogEntry({required this.provider, required this.freeSlots});
+
+  final Provider provider;
+  final int freeSlots;
+
+  @override
+  bool operator ==(Object other) => other is CatalogEntry && other.provider == provider && other.freeSlots == freeSlots;
+
+  @override
+  int get hashCode => Object.hash(provider, freeSlots);
+
+  @override
+  String toString() => 'CatalogEntry(${provider.id.value}, free: $freeSlots)';
+}

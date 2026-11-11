@@ -13,7 +13,7 @@ void main() {
 
     blocTest<CatalogBloc, CatalogState>(
       'prikazuje samo verifikovane i računa slobodna mesta nad zahtevima svih klijenata',
-      build: () => CatalogBloc(providers: repo, requests: repo),
+      build: () => CatalogBloc(providers: repo),
       act: (bloc) => bloc.add(const LoadCatalog()),
       verify: (bloc) {
         final state = bloc.state as CatalogLoaded;
@@ -25,7 +25,7 @@ void main() {
 
     blocTest<CatalogBloc, CatalogState>(
       'filter po usluzi koju niko ne nudi daje prazan katalog',
-      build: () => CatalogBloc(providers: repo, requests: repo),
+      build: () => CatalogBloc(providers: repo),
       act: (bloc) async {
         bloc.add(const LoadCatalog());
         await Future<void>.delayed(Duration.zero);
@@ -60,7 +60,7 @@ void main() {
       },
       verify: (bloc) {
         expect(bloc.state.noteError, const NoteEmpty());
-        expect(repo.requests, isEmpty);
+        expect(repo.stored, isEmpty);
       },
     );
 
@@ -76,13 +76,13 @@ void main() {
       verify: (bloc) {
         expect(bloc.state.status, NewRequestStatus.done);
         expect(bloc.state.created?.service, ServiceType.mastering);
-        expect(repo.requests.single.status, RequestStatus.sent);
+        expect(repo.stored.single.status, RequestStatus.sent);
       },
     );
 
     blocTest<NewRequestBloc, NewRequestState>(
       'port odbija zahtev kada pružalac nema mesta',
-      setUp: () => repo.requests.addAll([
+      setUp: () => repo.stored.addAll([
         for (var i = 0; i < marko.capacity; i++) request('r$i', RequestStatus.inProgress, client: boris),
       ]),
       build: build,

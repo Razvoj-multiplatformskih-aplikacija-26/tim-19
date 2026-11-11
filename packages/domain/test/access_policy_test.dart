@@ -136,4 +136,28 @@ void main() {
       expect(signInTo(ClientApp.backoffice, addressee).errorOrNull, const WrongApp(ClientApp.backoffice));
     });
   });
+
+  group('applyAction', () {
+    test('otkazivanje bira akciju po ulozi: klijent samo poslat, moderator i u izradi', () {
+      expect(applyAction(RequestAction.cancel, request(), by: owner).valueOrNull?.status, RequestStatus.cancelled);
+      expect(
+        applyAction(RequestAction.cancel, request(status: RequestStatus.inProgress), by: owner).errorOrNull,
+        const CancelNotAllowed(RequestStatus.inProgress),
+      );
+      expect(
+        applyAction(RequestAction.cancel, request(status: RequestStatus.inProgress), by: moderator).valueOrNull?.status,
+        RequestStatus.cancelled,
+      );
+    });
+
+    test('svaka akcija ide kroz isto pravo kao i direktan poziv', () {
+      for (final action in RequestAction.values) {
+        expect(
+          applyAction(action, request(status: RequestStatus.delivered), by: otherClient).errorOrNull,
+          const NotAllowed(),
+          reason: action.name,
+        );
+      }
+    });
+  });
 }

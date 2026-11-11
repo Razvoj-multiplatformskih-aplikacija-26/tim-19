@@ -138,6 +138,7 @@ void main() {
       const WrongApp(ClientApp.backoffice),
       const WrongApp(ClientApp.mobile),
       const StaleRequest(RequestStatus.accepted),
+      const InvalidCredentials(),
       const ServerRejected('novo-pravilo'),
     ];
     final codes = <String>{};

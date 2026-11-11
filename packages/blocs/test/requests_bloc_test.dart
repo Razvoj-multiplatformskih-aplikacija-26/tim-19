@@ -32,7 +32,7 @@ void main() {
 
   blocTest<RequestsBloc, RequestsState>(
     'prazan prikaz kada klijent nema zahteve',
-    setUp: () => repo.requests.clear(),
+    setUp: () => repo.stored.clear(),
     build: build,
     act: (bloc) => bloc.add(const LoadRequests()),
     expect: () => [const RequestsLoading(), const RequestsEmpty()],
@@ -53,7 +53,7 @@ void main() {
   blocTest<RequestsBloc, RequestsState>(
     'otkazuje poslat zahtev i javlja uspeh',
     build: build,
-    seed: () => RequestsLoaded(items: [repo.requests.first], providers: const {}),
+    seed: () => RequestsLoaded(items: [repo.stored.first], providers: const {}),
     act: (bloc) => bloc.add(const CancelRequest(RequestId('r-1'))),
     expect: () => [
       isA<RequestsLoaded>().having((s) => s.busyId, 'busyId', const RequestId('r-1')),
@@ -61,13 +61,13 @@ void main() {
           .having((s) => s.byId(const RequestId('r-1'))?.status, 'status', RequestStatus.cancelled)
           .having((s) => s.notice, 'notice', isA<RequestCancelled>()),
     ],
-    verify: (_) => expect(repo.requests.first.status, RequestStatus.cancelled),
+    verify: (_) => expect(repo.stored.first.status, RequestStatus.cancelled),
   );
 
   blocTest<RequestsBloc, RequestsState>(
     'pravilo iz domena odbija otkazivanje prihvaćenog zahteva',
     build: build,
-    seed: () => RequestsLoaded(items: [repo.requests[1]], providers: const {}),
+    seed: () => RequestsLoaded(items: [repo.stored[1]], providers: const {}),
     act: (bloc) => bloc.add(const CancelRequest(RequestId('r-2'))),
     expect: () => [
       isA<RequestsLoaded>().having(
@@ -76,13 +76,13 @@ void main() {
         const CancelRejected(CancelNotAllowed(RequestStatus.accepted)),
       ),
     ],
-    verify: (_) => expect(repo.requests[1].status, RequestStatus.accepted),
+    verify: (_) => expect(repo.stored[1].status, RequestStatus.accepted),
   );
 
   blocTest<RequestsBloc, RequestsState>(
     'prekid veze pri otkazivanju ostavlja listu i javlja grešku',
     build: build,
-    seed: () => RequestsLoaded(items: [repo.requests.first], providers: const {}),
+    seed: () => RequestsLoaded(items: [repo.stored.first], providers: const {}),
     act: (bloc) {
       repo.failNext = 1;
       bloc.add(const CancelRequest(RequestId('r-1')));
@@ -99,9 +99,9 @@ void main() {
     'zahtev koji je pružalac u međuvremenu prihvatio: razlog je StaleRequest',
     build: build,
     // Klijent vidi zahtev kao poslat, a u portu je već prihvaćen.
-    seed: () => RequestsLoaded(items: [repo.requests.first], providers: const {}),
+    seed: () => RequestsLoaded(items: [repo.stored.first], providers: const {}),
     act: (bloc) {
-      repo.requests[0] = repo.requests[0].copyWith(status: RequestStatus.accepted);
+      repo.stored[0] = repo.stored[0].copyWith(status: RequestStatus.accepted);
       bloc.add(const CancelRequest(RequestId('r-1')));
     },
     skip: 1,
@@ -112,15 +112,15 @@ void main() {
         const CancelRejected(StaleRequest(RequestStatus.accepted)),
       ),
     ],
-    verify: (_) => expect(repo.requests.first.status, RequestStatus.accepted),
+    verify: (_) => expect(repo.stored.first.status, RequestStatus.accepted),
   );
 
   blocTest<RequestsBloc, RequestsState>(
     'tuđ zahtev ne može da se otkaže: NotAllowed iz AccessPolicy',
     build: () => RequestsBloc(requests: repo, providers: repo, user: borisUser),
-    seed: () => RequestsLoaded(items: [repo.requests.first], providers: const {}),
+    seed: () => RequestsLoaded(items: [repo.stored.first], providers: const {}),
     act: (bloc) => bloc.add(const CancelRequest(RequestId('r-1'))),
     expect: () => [isA<RequestsLoaded>().having((s) => s.notice, 'notice', const CancelRejected(NotAllowed()))],
-    verify: (_) => expect(repo.requests.first.status, RequestStatus.sent),
+    verify: (_) => expect(repo.stored.first.status, RequestStatus.sent),
   );
 }

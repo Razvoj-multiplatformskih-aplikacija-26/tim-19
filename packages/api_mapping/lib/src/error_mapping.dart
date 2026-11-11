@@ -75,6 +75,11 @@ extension DomainErrorMapping on DomainError {
       title: 'Request changed meanwhile',
       state: current.toDto(),
     ),
+    InvalidCredentials() => const ProblemDto(
+      status: 401,
+      code: ErrorCodes.invalidCredentials,
+      title: 'Invalid credentials',
+    ),
     // Greška koju je klijent dobio sa servera; server je ne šalje, ali kôd ostaje isti.
     ServerRejected(:final code) => ProblemDto(status: 409, code: code, title: 'Rejected'),
   };
@@ -111,6 +116,7 @@ extension ProblemMapping on ProblemDto {
       ErrorCodes.notAllowed => const NotAllowed(),
       ErrorCodes.wrongApp when app != null => WrongApp(app),
       ErrorCodes.staleRequest when state != null => StaleRequest(state),
+      ErrorCodes.invalidCredentials => const InvalidCredentials(),
       _ => null,
     };
   }

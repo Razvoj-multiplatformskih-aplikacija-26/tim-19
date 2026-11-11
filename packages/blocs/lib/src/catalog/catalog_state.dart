@@ -21,25 +21,25 @@ final class CatalogError extends CatalogState {
 }
 
 final class CatalogLoaded extends CatalogState {
-  const CatalogLoaded({required this.providers, required this.requests, this.genre, this.service});
+  const CatalogLoaded({required this.entries, this.genre, this.service});
 
-  final List<Provider> providers;
-
-  /// Zahtevi svih klijenata, za računanje slobodnih mesta.
-  final List<CollaborationRequest> requests;
+  /// Pružaoci sa slobodnim mestima, kako ih daje port.
+  final List<CatalogEntry> entries;
   final Genre? genre;
   final ServiceType? service;
+
+  List<Provider> get providers => [for (final e in entries) e.provider];
 
   /// Ono što katalog prikazuje: pravilo iz domena bira verifikovane i primenjuje filter.
   List<Provider> get visible => catalog(providers, genre: genre, service: service);
 
   Provider? byId(ProviderId id) => catalog(providers).where((p) => p.id == id).firstOrNull;
 
-  int freeSlotsOf(Provider provider) => freeSlots(provider, requests);
+  int freeSlotsOf(Provider provider) => entries.where((e) => e.provider.id == provider.id).firstOrNull?.freeSlots ?? 0;
 
   CatalogLoaded withFilter({Genre? genre, ServiceType? service}) =>
-      CatalogLoaded(providers: providers, requests: requests, genre: genre, service: service);
+      CatalogLoaded(entries: entries, genre: genre, service: service);
 
   @override
-  List<Object?> get props => [providers, requests, genre, service];
+  List<Object?> get props => [entries, genre, service];
 }

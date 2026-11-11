@@ -2,7 +2,16 @@ part of 'admin_requests_bloc.dart';
 
 enum AdminColumn { createdAt, client, provider, service, status }
 
-enum ModeratorAction { cancel, close, reopen }
+enum ModeratorAction {
+  cancel(RequestAction.cancel),
+  close(RequestAction.close),
+  reopen(RequestAction.reopen);
+
+  const ModeratorAction(this.asRequestAction);
+
+  /// Ista akcija kako je šalje port (i server).
+  final RequestAction asRequestAction;
+}
 
 sealed class AdminRequestsEvent {
   const AdminRequestsEvent();
