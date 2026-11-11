@@ -1,3 +1,4 @@
+import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/app.dart';
@@ -86,6 +87,30 @@ void main() {
     await tester.tap(find.text('Jelena Vokal'));
     await tester.pumpAndSettle();
     expect(find.text('Pošalji zahtev'), findsNothing);
+  });
+
+  testWidgets('zakasneli klijent: poslednje mesto je zauzeto dok je forma otvorena; razlog ostaje na ekranu', (
+    tester,
+  ) async {
+    final deps = await start(tester, signedIn: true, location: '/katalog/p-jelena/novi-zahtev');
+    await tester.enterText(find.byKey(const Key('note')), 'Prateći vokali za refren.');
+    await tester.pumpAndSettle();
+    // Drugi klijent u međuvremenu zauzima poslednje mesto kod Jelene.
+    // Lažni port čeka svoje kašnjenje, pa vreme testa mora da se pomeri.
+    final taken = deps.requests.create(
+      const NewRequest(
+        clientId: ClientId('c-sava'),
+        providerId: ProviderId('p-jelena'),
+        service: ServiceType.vocals,
+        note: 'Brži klijent',
+      ),
+    );
+    await tester.pump(latency * 2);
+    expect((await taken).isSuccess, isTrue);
+    await tester.tap(find.text('Pošalji zahtev'));
+    await tester.pumpAndSettle();
+    expect(find.text('Pružalac trenutno nema slobodnih mesta.'), findsOneWidget);
+    expect(find.text('Prateći vokali za refren.'), findsOneWidget);
   });
 
   testWidgets('klijent traži reviziju isporučenog zahteva', (tester) async {

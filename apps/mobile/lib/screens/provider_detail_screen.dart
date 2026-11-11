@@ -14,6 +14,9 @@ class ProviderGate extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => BlocBuilder<CatalogBloc, CatalogState>(
+    // Osvežavanje već učitanog kataloga (npr. posle odbijanja sa servera) ne briše ekran: forma i poruka
+    // ostaju, a sveža slobodna mesta stižu kada se katalog učita.
+    buildWhen: (previous, current) => !(previous is CatalogLoaded && current is CatalogLoading),
     builder: (context, state) => switch (state) {
       CatalogLoading() => const Scaffold(body: LoadingView()),
       CatalogError(:final cause) => Scaffold(
