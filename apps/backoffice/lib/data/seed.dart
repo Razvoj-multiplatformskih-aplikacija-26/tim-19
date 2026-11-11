@@ -1,6 +1,6 @@
 import 'package:domain/domain.dart';
 
-/// Prijavljeni moderator dok prijava ne stigne u KT2.
+/// Moderator za lažnu prijavu (demo bez servera, testovi).
 const moderator = User(id: UserId('m-kosta'), name: 'Kosta Baštić', role: Role.moderator);
 
 const seedClients = [

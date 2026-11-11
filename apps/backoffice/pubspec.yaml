@@ -8,6 +8,8 @@ environment:
 resolution: workspace
 
 dependencies:
+  api_client:
+    path: ../../packages/api_client
   blocs:
     path: ../../packages/blocs
   domain:
@@ -15,6 +17,7 @@ dependencies:
   flutter:
     sdk: flutter
   flutter_bloc: 9.1.1
+  flutter_secure_storage: 11.2.0
   ui:
     path: ../../packages/ui
 

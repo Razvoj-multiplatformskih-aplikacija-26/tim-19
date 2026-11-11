@@ -31,6 +31,8 @@ final class AdminRequestsLoaded extends AdminRequestsState {
     required this.requests,
     required this.providers,
     required this.clients,
+    int? total,
+    this.loadingMore = false,
     this.sortColumn = AdminColumn.createdAt,
     this.ascending = false,
     this.statusFilter,
@@ -38,9 +40,16 @@ final class AdminRequestsLoaded extends AdminRequestsState {
     this.selectedId,
     this.busyId,
     this.notice,
-  });
+  }) : total = total ?? requests.length;
 
+  /// Učitani zahtevi (jedna ili više strana).
   final List<CollaborationRequest> requests;
+
+  /// Koliko zahteva ima na serveru po trenutnom filteru stanja.
+  final int total;
+
+  /// Sledeća strana se upravo učitava.
+  final bool loadingMore;
   final Map<ProviderId, Provider> providers;
   final Map<ClientId, Client> clients;
   final AdminColumn sortColumn;
@@ -52,6 +61,9 @@ final class AdminRequestsLoaded extends AdminRequestsState {
   final AdminNotice? notice;
 
   bool get isBusy => busyId != null;
+
+  /// Na serveru ima još zahteva koji nisu učitani.
+  bool get hasMore => requests.length < total;
 
   String providerName(CollaborationRequest r) => providers[r.providerId]?.name ?? r.providerId.value;
 
@@ -110,6 +122,8 @@ final class AdminRequestsLoaded extends AdminRequestsState {
 
   AdminRequestsLoaded copyWith({
     List<CollaborationRequest>? requests,
+    int? total,
+    bool? loadingMore,
     AdminColumn? sortColumn,
     bool? ascending,
     Object? statusFilter = _keep,
@@ -119,6 +133,8 @@ final class AdminRequestsLoaded extends AdminRequestsState {
     Object? notice = _keep,
   }) => AdminRequestsLoaded(
     requests: requests ?? this.requests,
+    total: total ?? this.total,
+    loadingMore: loadingMore ?? this.loadingMore,
     providers: providers,
     clients: clients,
     sortColumn: sortColumn ?? this.sortColumn,
@@ -133,6 +149,8 @@ final class AdminRequestsLoaded extends AdminRequestsState {
   @override
   List<Object?> get props => [
     requests,
+    total,
+    loadingMore,
     providers,
     clients,
     sortColumn,
@@ -146,7 +164,12 @@ final class AdminRequestsLoaded extends AdminRequestsState {
 }
 
 sealed class AdminNotice extends Equatable {
-  const AdminNotice(this.action);
+  const AdminNotice();
+}
+
+/// Obaveštenje o akciji moderatora nad zahtevom.
+sealed class ModeratorNotice extends AdminNotice {
+  const ModeratorNotice(this.action);
 
   final ModeratorAction action;
 
@@ -154,7 +177,17 @@ sealed class AdminNotice extends Equatable {
   List<Object?> get props => [action];
 }
 
-final class ModeratorActionDone extends AdminNotice {
+/// Sledeća strana nije stigla (server nije dostupan); učitane strane ostaju.
+final class AdminLoadFailed extends AdminNotice {
+  const AdminLoadFailed(this.cause);
+
+  final Object cause;
+
+  @override
+  List<Object?> get props => [cause];
+}
+
+final class ModeratorActionDone extends ModeratorNotice {
   const ModeratorActionDone(super.action, this.request);
 
   final CollaborationRequest request;
@@ -163,7 +196,7 @@ final class ModeratorActionDone extends AdminNotice {
   List<Object?> get props => [action, request];
 }
 
-final class ModeratorActionRejected extends AdminNotice {
+final class ModeratorActionRejected extends ModeratorNotice {
   const ModeratorActionRejected(super.action, this.error);
 
   final DomainError error;
@@ -172,7 +205,7 @@ final class ModeratorActionRejected extends AdminNotice {
   List<Object?> get props => [action, error];
 }
 
-final class ModeratorActionFailed extends AdminNotice {
+final class ModeratorActionFailed extends ModeratorNotice {
   const ModeratorActionFailed(super.action, this.cause);
 
   final Object cause;

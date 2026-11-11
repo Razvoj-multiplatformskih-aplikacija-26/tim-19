@@ -68,3 +68,8 @@ final class ModeratorActionRequested extends AdminRequestsEvent {
 final class AdminNoticeShown extends AdminRequestsEvent {
   const AdminNoticeShown();
 }
+
+/// Dovuci sledeću stranu zahteva sa servera.
+final class AdminLoadMore extends AdminRequestsEvent {
+  const AdminLoadMore();
+}

@@ -107,6 +107,7 @@ class _RequestsScreenState extends State<RequestsScreen> {
       },
       ModeratorActionRejected(:final error) => domainErrorMessage(error),
       ModeratorActionFailed(:final cause) => failureMessage(cause),
+      AdminLoadFailed(:final cause) => failureMessage(cause),
     };
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
@@ -171,6 +172,7 @@ class _RequestsScreenState extends State<RequestsScreen> {
                 onPressed: () => _bloc.add(const LoadAdminRequests()),
                 icon: const Icon(Icons.refresh),
               ),
+              const _AccountMenu(),
               const SizedBox(width: 8),
             ],
           ),
@@ -272,7 +274,20 @@ class _Toolbar extends StatelessWidget {
         ],
       ),
     );
-    final count = Text('${state.visible.length} od ${state.requests.length}');
+    final count = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text('${state.visible.length} od ${state.total}'),
+        if (state.hasMore) ...[
+          const SizedBox(width: 8),
+          TextButton(
+            key: const Key('ucitaj-jos'),
+            onPressed: state.loadingMore ? null : () => bloc.add(const AdminLoadMore()),
+            child: Text(state.loadingMore ? 'Učitavanje…' : 'Učitaj još'),
+          ),
+        ],
+      ],
+    );
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
       child: narrow
@@ -322,6 +337,27 @@ class _DemoMenu extends StatelessWidget {
       itemBuilder: (context) => const [
         PopupMenuItem(value: 'greska', child: Text('Sledeći zahtev vraća grešku')),
         PopupMenuItem(value: 'prazno', child: Text('Učitaj prazan odgovor')),
+      ],
+    );
+  }
+}
+
+/// Prijavljeni moderator i odjava.
+class _AccountMenu extends StatelessWidget {
+  const _AccountMenu();
+
+  @override
+  Widget build(BuildContext context) {
+    final moderator = context.read<AdminRequestsBloc>().moderator;
+    return PopupMenuButton<String>(
+      key: const Key('nalog'),
+      tooltip: moderator.name,
+      icon: const Icon(Icons.account_circle_outlined),
+      onSelected: (_) => context.read<SessionBloc>().add(const SignOutRequested()),
+      itemBuilder: (context) => [
+        PopupMenuItem(enabled: false, child: Text(moderator.name)),
+        const PopupMenuDivider(),
+        const PopupMenuItem(key: Key('odjava'), value: 'odjava', child: Text('Odjavi se')),
       ],
     );
   }

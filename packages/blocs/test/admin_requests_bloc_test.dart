@@ -125,6 +125,33 @@ void main() {
     },
   );
 
+  blocTest<AdminRequestsBloc, AdminRequestsState>(
+    'učitava po stranama: prva strana, pa „Učitaj još“ do kraja',
+    build: () => AdminRequestsBloc(requests: repo, providers: repo, clients: repo, moderator: kosta, pageSize: 2),
+    act: (bloc) async {
+      await loaded(bloc);
+      expect([stateOf(bloc).requests.length, stateOf(bloc).total, stateOf(bloc).hasMore], [2, 3, true]);
+      bloc.add(const AdminLoadMore());
+      await Future<void>.delayed(Duration.zero);
+    },
+    verify: (bloc) => expect([stateOf(bloc).requests.length, stateOf(bloc).hasMore], [3, false]),
+  );
+
+  blocTest<AdminRequestsBloc, AdminRequestsState>(
+    'filter po stanju traži stranu od servera; prazan filter ostaje u tabeli',
+    build: build,
+    act: (bloc) async {
+      await loaded(bloc);
+      bloc.add(const AdminStatusFilterChanged(RequestStatus.delivered));
+      await Future<void>.delayed(Duration.zero);
+      expect(stateOf(bloc).requests.map((r) => r.id.value), ['r-2']);
+      expect(stateOf(bloc).total, 1);
+      bloc.add(const AdminStatusFilterChanged(RequestStatus.rejected));
+      await Future<void>.delayed(Duration.zero);
+    },
+    verify: (bloc) => expect([stateOf(bloc).requests, stateOf(bloc).statusFilter], [isEmpty, RequestStatus.rejected]),
+  );
+
   test('dostupne akcije prate pravila iz domena', () {
     final state = AdminRequestsLoaded(requests: repo.stored, providers: const {}, clients: const {});
     final delivered = repo.stored[1];
