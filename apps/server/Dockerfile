@@ -1,4 +1,4 @@
-# Server u Docker-u: workspace samo sa paketima koje server koristi, zaključan istim pubspec.lock kao ceo repo.
+# Server u Docker-u: workspace samo sa paketima koje server koristi (api_client samo za testove), zaključan istim pubspec.lock kao ceo repo.
 FROM dart:3.13.7 AS build
 WORKDIR /workspace
 COPY <<EOF pubspec.yaml
@@ -9,12 +9,14 @@ workspace:
   - packages/domain
   - packages/api_contract
   - packages/api_mapping
+  - packages/api_client
   - apps/server
 EOF
 COPY pubspec.lock ./
 COPY packages/domain packages/domain
 COPY packages/api_contract packages/api_contract
 COPY packages/api_mapping packages/api_mapping
+COPY packages/api_client packages/api_client
 COPY apps/server apps/server
 RUN dart pub get
 RUN dart compile exe apps/server/bin/server.dart -o /server

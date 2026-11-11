@@ -13,6 +13,7 @@ workspace:
   - packages/ui
   - packages/api_contract
   - packages/api_mapping
+  - packages/api_client
   - apps/server
 
 dev_dependencies:
