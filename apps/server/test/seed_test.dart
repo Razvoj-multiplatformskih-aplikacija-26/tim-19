@@ -1,45 +1,19 @@
 @Tags(['db'])
 library;
 
-import 'dart:io';
-
 import 'package:http/http.dart' as http;
 import 'package:postgres/postgres.dart';
-import 'package:relic/relic.dart' show IOAdapter, RelicServer;
 import 'package:server/server.dart';
 import 'package:server/src/passwords.dart';
 import 'package:test/test.dart';
 
-// Testovi rade nad posebnom bazom soundconnect_test u istom kontejneru (docker compose up -d db).
+import 'support.dart';
 
 late Pool<void> database;
-late String demoPassword;
-
-/// Pravi praznu test bazu i na nju primenjuje iste migracije kao compose (dbmate).
-Future<Pool<void>> freshTestDatabase(ServerConfig config) async {
-  final admin = Pool<void>.withUrl(config.databaseUrl);
-  await admin.execute('DROP DATABASE IF EXISTS soundconnect_test WITH (FORCE)');
-  await admin.execute('CREATE DATABASE soundconnect_test');
-  await admin.close();
-  final url = Uri.parse(config.databaseUrl);
-  final insideCompose = url.replace(host: 'db', port: 5432, path: '/soundconnect_test');
-  final result = await Process.run('docker', [
-    'compose',
-    'run',
-    '--rm',
-    '-e',
-    'DATABASE_URL=$insideCompose',
-    'migrate',
-  ], workingDirectory: '../..');
-  if (result.exitCode != 0) throw StateError('dbmate nije uspeo: ${result.stderr}');
-  return Pool<void>.withUrl(url.replace(path: '/soundconnect_test').toString());
-}
 
 void main() {
   setUpAll(() async {
-    final config = ServerConfig.fromEnvironment(serverEnvironment());
-    demoPassword = config.demoPassword!;
-    database = await freshTestDatabase(config);
+    database = await freshTestDatabase('soundconnect_test_seed');
     expect(await seedDemoData(database, now: DateTime.now(), demoPassword: demoPassword), isTrue);
   });
 
@@ -103,12 +77,11 @@ void main() {
   });
 
   test('/health odgovara kada baza radi', () async {
-    final server = RelicServer(() => IOAdapter.bind(InternetAddress.loopbackIPv4, port: 0));
-    await server.mountAndStart(buildHandler(database));
+    final server = await TestServer.start(database);
     addTearDown(server.close);
-    final answer = await http.get(Uri.parse('http://localhost:${server.port}/health'));
+    final answer = await http.get(server.uri('/health'));
     expect([answer.statusCode, answer.body], [200, 'ok']);
-    final missing = await http.get(Uri.parse('http://localhost:${server.port}/nema'));
+    final missing = await http.get(server.uri('/nema'));
     expect(missing.statusCode, 404);
     expect(missing.headers['content-type'], startsWith('application/problem+json'));
   });

@@ -12,6 +12,7 @@ dependencies:
     path: ../../packages/api_contract
   api_mapping:
     path: ../../packages/api_mapping
+  dart_jsonwebtoken: 3.4.1
   domain:
     path: ../../packages/domain
   hashlib: 2.4.2

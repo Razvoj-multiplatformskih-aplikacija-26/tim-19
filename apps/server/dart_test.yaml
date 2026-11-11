@@ -1,2 +1,5 @@
+# Fajlovi sa bazom pokreću dbmate kroz docker compose; paralelno bi se sudarili.
+concurrency: 1
+
 tags:
   db:
