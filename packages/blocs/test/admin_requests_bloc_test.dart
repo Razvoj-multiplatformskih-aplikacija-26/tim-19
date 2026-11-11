@@ -105,6 +105,26 @@ void main() {
     },
   );
 
+  blocTest<AdminRequestsBloc, AdminRequestsState>(
+    'drugi moderator je u međuvremenu zatvorio zahtev: razlog, pa sveži podaci, izbor ostaje',
+    build: build,
+    act: (bloc) async {
+      await loaded(bloc);
+      bloc.add(const AdminRequestSelected(RequestId('r-2')));
+      repo.stored[1] = repo.stored[1].copyWith(status: RequestStatus.completed);
+      bloc.add(const ModeratorActionRequested(ModeratorAction.reopen, RequestId('r-2')));
+    },
+    verify: (bloc) {
+      final state = stateOf(bloc);
+      expect(
+        state.notice,
+        const ModeratorActionRejected(ModeratorAction.reopen, StaleRequest(RequestStatus.completed)),
+      );
+      expect(state.selected?.status, RequestStatus.completed);
+      expect(state.isBusy, isFalse);
+    },
+  );
+
   test('dostupne akcije prate pravila iz domena', () {
     final state = AdminRequestsLoaded(requests: repo.stored, providers: const {}, clients: const {});
     final delivered = repo.stored[1];

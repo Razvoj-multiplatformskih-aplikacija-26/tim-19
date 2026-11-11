@@ -25,14 +25,23 @@ final class RequestsEmpty extends RequestsState {
 }
 
 final class RequestsLoaded extends RequestsState {
-  const RequestsLoaded({required this.items, required this.providers, this.notice, this.busyId});
+  const RequestsLoaded({
+    required this.items,
+    required this.providers,
+    this.actions = const {},
+    this.notice,
+    this.busyId,
+  });
 
-  /// Zahtevi klijenta, najnoviji prvi.
+  /// Zahtevi koje korisnik vidi (klijent svoje, pružalac upućene njemu), najnoviji prvi.
   final List<CollaborationRequest> items;
   final Map<ProviderId, Provider> providers;
+
+  /// Akcije koje domen dozvoljava prijavljenom korisniku, po zahtevu; ekran nudi samo njih.
+  final Map<RequestId, List<RequestAction>> actions;
   final RequestsNotice? notice;
 
-  /// Zahtev koji se upravo otkazuje.
+  /// Zahtev nad kojim akcija upravo traje.
   final RequestId? busyId;
 
   bool get isBusy => busyId != null;
@@ -41,52 +50,56 @@ final class RequestsLoaded extends RequestsState {
 
   Provider? providerOf(CollaborationRequest request) => providers[request.providerId];
 
+  List<RequestAction> actionsFor(CollaborationRequest request) => actions[request.id] ?? const [];
+
   /// Pravilo iz domena odlučuje da li se nudi dugme za otkazivanje.
-  bool canCancel(CollaborationRequest request) => canCancelByClient(request).isSuccess;
+  bool canCancel(CollaborationRequest request) => actionsFor(request).contains(RequestAction.cancel);
 
   /// Zašto aktivan zahtev više ne može da se otkaže; `null` za poslat ili završen zahtev.
   DomainError? whyNotCancellable(CollaborationRequest request) =>
       request.status.isFinal ? null : canCancelByClient(request).errorOrNull;
 
   RequestsLoaded copyWith({required RequestsNotice? notice, RequestId? busyId}) =>
-      RequestsLoaded(items: items, providers: providers, notice: notice, busyId: busyId);
+      RequestsLoaded(items: items, providers: providers, actions: actions, notice: notice, busyId: busyId);
 
   @override
-  List<Object?> get props => [items, providers, notice, busyId];
+  List<Object?> get props => [items, providers, actions, notice, busyId];
 }
 
 sealed class RequestsNotice extends Equatable {
-  const RequestsNotice();
+  const RequestsNotice(this.action);
+
+  final RequestAction action;
 
   @override
-  List<Object?> get props => const [];
+  List<Object?> get props => [action];
 }
 
-final class RequestCancelled extends RequestsNotice {
-  const RequestCancelled(this.request);
+final class RequestActionDone extends RequestsNotice {
+  const RequestActionDone(super.action, this.request);
 
   final CollaborationRequest request;
 
   @override
-  List<Object?> get props => [request];
+  List<Object?> get props => [action, request];
 }
 
-/// Pravilo iz domena ili port je odbio otkazivanje.
-final class CancelRejected extends RequestsNotice {
-  const CancelRejected(this.error);
+/// Pravilo je odbilo akciju: domen na klijentu pre slanja, ili server (tada su podaci ponovo učitani).
+final class RequestActionRejected extends RequestsNotice {
+  const RequestActionRejected(super.action, this.error);
 
   final DomainError error;
 
   @override
-  List<Object?> get props => [error];
+  List<Object?> get props => [action, error];
 }
 
 /// Port nije odgovorio.
-final class CancelFailed extends RequestsNotice {
-  const CancelFailed(this.cause);
+final class RequestActionFailed extends RequestsNotice {
+  const RequestActionFailed(super.action, this.cause);
 
   final Object cause;
 
   @override
-  List<Object?> get props => [cause];
+  List<Object?> get props => [action, cause];
 }

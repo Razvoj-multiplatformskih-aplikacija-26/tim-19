@@ -43,6 +43,24 @@ void main() {
     setUp(() => repo = FakeRepository());
 
     blocTest<NewRequestBloc, NewRequestState>(
+      'poslednje mesto je u međuvremenu zauzeto: razlog sa servera i katalog za ponovno učitavanje',
+      setUp: () => repo = FakeRepository(
+        requests: [for (var i = 0; i < 3; i++) request('r-$i', RequestStatus.sent, client: boris)],
+      ),
+      build: build,
+      act: (bloc) async {
+        bloc.add(const NoteChanged('Miks singla'));
+        await Future<void>.delayed(Duration.zero);
+        bloc.add(const SubmitNewRequest());
+      },
+      verify: (bloc) {
+        expect(bloc.state.submitError, const NoFreeSlots(capacity: 3));
+        expect(bloc.state.staleCatalog, isTrue);
+        expect(bloc.state.status, NewRequestStatus.editing);
+      },
+    );
+
+    blocTest<NewRequestBloc, NewRequestState>(
       'proverava dužinu napomene dok korisnik kuca',
       build: build,
       act: (bloc) => bloc.add(NoteChanged('a' * (maxNoteLength + 1))),

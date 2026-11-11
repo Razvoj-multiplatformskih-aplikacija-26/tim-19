@@ -27,8 +27,25 @@ String domainErrorMessage(DomainError error) => switch (error) {
 String failureMessage(Object cause) => switch (cause) {
   RepositoryException(failure: RepositoryFailure.unreachable) =>
     'Server nije dostupan. Proverite mrežu i pokušajte ponovo.',
-  RepositoryException(failure: RepositoryFailure.sessionExpired) => 'Prijava je istekla. Prijavite se ponovo.',
+  RepositoryException(failure: RepositoryFailure.sessionExpired) => sessionExpiredMessage,
   RepositoryException(failure: RepositoryFailure.serverError) =>
     'Server trenutno ne odgovara ispravno. Pokušajte ponovo malo kasnije.',
   _ => 'Došlo je do neočekivane greške.',
+};
+
+/// Korisnik je poslao formu za prijavu bez korisničkog imena ili lozinke.
+const signInIncompleteMessage = 'Unesite korisničko ime i lozinku.';
+
+/// Prijava je istekla posle vremena iz podešavanja servera.
+const sessionExpiredMessage = 'Prijava je istekla. Prijavite se ponovo.';
+
+/// Potvrda uspešne akcije nad zahtevom.
+String actionDoneMessage(RequestAction action) => switch (action) {
+  RequestAction.cancel => 'Zahtev je otkazan.',
+  RequestAction.complete => 'Isporuka je potvrđena.',
+  RequestAction.revise => 'Zahtev je vraćen na doradu.',
+  RequestAction.accept => 'Zahtev je prihvaćen.',
+  RequestAction.reject => 'Zahtev je odbijen.',
+  RequestAction.close => 'Zahtev je zatvoren kao završen.',
+  RequestAction.reopen => 'Zahtev je vraćen u izradu.',
 };

@@ -59,7 +59,7 @@ void main() {
       isA<RequestsLoaded>().having((s) => s.busyId, 'busyId', const RequestId('r-1')),
       isA<RequestsLoaded>()
           .having((s) => s.byId(const RequestId('r-1'))?.status, 'status', RequestStatus.cancelled)
-          .having((s) => s.notice, 'notice', isA<RequestCancelled>()),
+          .having((s) => s.notice, 'notice', isA<RequestActionDone>()),
     ],
     verify: (_) => expect(repo.stored.first.status, RequestStatus.cancelled),
   );
@@ -73,7 +73,7 @@ void main() {
       isA<RequestsLoaded>().having(
         (s) => s.notice,
         'notice',
-        const CancelRejected(CancelNotAllowed(RequestStatus.accepted)),
+        const RequestActionRejected(RequestAction.cancel, CancelNotAllowed(RequestStatus.accepted)),
       ),
     ],
     verify: (_) => expect(repo.stored[1].status, RequestStatus.accepted),
@@ -90,7 +90,7 @@ void main() {
     expect: () => [
       isA<RequestsLoaded>(),
       isA<RequestsLoaded>()
-          .having((s) => s.notice, 'notice', isA<CancelFailed>())
+          .having((s) => s.notice, 'notice', isA<RequestActionFailed>())
           .having((s) => s.isBusy, 'busy', false),
     ],
   );
@@ -109,10 +109,16 @@ void main() {
       isA<RequestsLoaded>().having(
         (s) => s.notice,
         'notice',
-        const CancelRejected(StaleRequest(RequestStatus.accepted)),
+        const RequestActionRejected(RequestAction.cancel, StaleRequest(RequestStatus.accepted)),
       ),
     ],
-    verify: (_) => expect(repo.stored.first.status, RequestStatus.accepted),
+    verify: (bloc) {
+      expect(repo.stored.first.status, RequestStatus.accepted);
+      // Posle odbijanja sa servera ekran vidi sveže stanje, bez dugmeta za otkazivanje.
+      final state = bloc.state as RequestsLoaded;
+      expect(state.byId(const RequestId('r-1'))?.status, RequestStatus.accepted);
+      expect(state.canCancel(state.byId(const RequestId('r-1'))!), isFalse);
+    },
   );
 
   blocTest<RequestsBloc, RequestsState>(
@@ -120,7 +126,47 @@ void main() {
     build: () => RequestsBloc(requests: repo, providers: repo, user: borisUser),
     seed: () => RequestsLoaded(items: [repo.stored.first], providers: const {}),
     act: (bloc) => bloc.add(const CancelRequest(RequestId('r-1'))),
-    expect: () => [isA<RequestsLoaded>().having((s) => s.notice, 'notice', const CancelRejected(NotAllowed()))],
+    expect: () => [
+      isA<RequestsLoaded>().having(
+        (s) => s.notice,
+        'notice',
+        const RequestActionRejected(RequestAction.cancel, NotAllowed()),
+      ),
+    ],
     verify: (_) => expect(repo.stored.first.status, RequestStatus.sent),
   );
+
+  group('pružalac u mobilnoj', () {
+    const markoUser = User(id: UserId('p-marko'), name: 'Marko', role: Role.provider);
+
+    blocTest<RequestsBloc, RequestsState>(
+      'vidi zahteve upućene njemu i nudi mu samo prihvatanje i odbijanje poslatih',
+      setUp: () => repo = FakeRepository(requests: repo.stored, session: markoUser),
+      build: () => RequestsBloc(requests: repo, providers: repo, user: markoUser),
+      act: (bloc) => bloc.add(const LoadRequests()),
+      skip: 1,
+      verify: (bloc) {
+        final state = bloc.state as RequestsLoaded;
+        expect(state.items, hasLength(3));
+        expect(state.actionsFor(state.byId(const RequestId('r-1'))!), [RequestAction.accept, RequestAction.reject]);
+        expect(state.actionsFor(state.byId(const RequestId('r-2'))!), isEmpty);
+      },
+    );
+
+    blocTest<RequestsBloc, RequestsState>(
+      'prihvata poslat zahtev, pa ponovo učitava',
+      setUp: () => repo = FakeRepository(requests: repo.stored, session: markoUser),
+      build: () => RequestsBloc(requests: repo, providers: repo, user: markoUser),
+      act: (bloc) async {
+        bloc.add(const LoadRequests());
+        await Future<void>.delayed(Duration.zero);
+        bloc.add(const RequestActionRequested(RequestAction.accept, RequestId('r-1')));
+      },
+      verify: (bloc) {
+        final state = bloc.state as RequestsLoaded;
+        expect(state.byId(const RequestId('r-1'))?.status, RequestStatus.accepted);
+        expect(state.notice, isA<RequestActionDone>());
+      },
+    );
+  });
 }

@@ -7,7 +7,8 @@ import '../limits.dart';
 part 'requests_event.dart';
 part 'requests_state.dart';
 
-/// Glavni tok klijenta: učitava njegove zahteve i otkazuje poslat zahtev.
+/// Zahtevi prijavljenog korisnika mobilne aplikacije i akcije nad njima: klijent svoje zahteve, pružalac
+/// zahteve upućene njemu. Isti Bloc radi nad serverom i nad lažnim portom.
 final class RequestsBloc extends Bloc<RequestsEvent, RequestsState> {
   RequestsBloc({required this.requests, required this.providers, required this.user}) : super(const RequestsLoading()) {
     on<LoadRequests>((event, emit) async {
@@ -18,7 +19,7 @@ final class RequestsBloc extends Bloc<RequestsEvent, RequestsState> {
       emit(const RequestsLoading());
       await _reload(emit);
     });
-    on<CancelRequest>(_onCancel);
+    on<RequestActionRequested>(_onAction);
     on<RequestsNoticeShown>((event, emit) {
       final current = state;
       if (current is RequestsLoaded && current.notice != null) emit(current.copyWith(notice: null));
@@ -28,30 +29,38 @@ final class RequestsBloc extends Bloc<RequestsEvent, RequestsState> {
   final RequestsRepository requests;
   final ProvidersRepository providers;
 
-  /// Prijavljeni klijent; vidi i otkazuje samo svoje zahteve.
+  /// Prijavljeni korisnik; pravo na akciju proverava domen u njegovo ime.
   final User user;
 
-  Future<void> _onCancel(CancelRequest event, Emitter<RequestsState> emit) async {
+  /// Akcije koje ima smisla ponuditi u mobilnoj aplikaciji, po ulozi.
+  List<RequestAction> get _offered => switch (user.role) {
+    Role.client => const [RequestAction.cancel, RequestAction.complete, RequestAction.revise],
+    Role.provider => const [RequestAction.accept, RequestAction.reject],
+    Role.moderator => const [],
+  };
+
+  Future<void> _onAction(RequestActionRequested event, Emitter<RequestsState> emit) async {
     final current = state;
     if (current is! RequestsLoaded || current.isBusy) return;
     final request = current.byId(event.id);
     if (request == null) return;
-    final next = cancelByClient(request, by: user);
-    if (next case Failure(:final error)) {
-      emit(current.copyWith(notice: CancelRejected(error)));
+    // Domen proverava pre slanja; server ponovo proverava i konačno odlučuje.
+    if (applyAction(event.action, request, by: user) case Failure(:final error)) {
+      emit(current.copyWith(notice: RequestActionRejected(event.action, error)));
       return;
     }
     emit(current.copyWith(notice: null, busyId: event.id));
     try {
-      final saved = await requests.apply(RequestAction.cancel, request.id, from: request.status);
+      final saved = await requests.apply(event.action, request.id, from: request.status);
       switch (saved) {
         case Success(:final value):
-          await _reload(emit, notice: RequestCancelled(value));
+          await _reload(emit, notice: RequestActionDone(event.action, value));
         case Failure(:final error):
-          emit(current.copyWith(notice: CancelRejected(error)));
+          // Server je odbio (npr. zahtev je u međuvremenu prihvaćen): razlog, pa sveži podaci.
+          await _reload(emit, notice: RequestActionRejected(event.action, error));
       }
     } on Exception catch (cause) {
-      emit(current.copyWith(notice: CancelFailed(cause)));
+      emit(current.copyWith(notice: RequestActionFailed(event.action, cause)));
     }
   }
 
@@ -65,7 +74,18 @@ final class RequestsBloc extends Bloc<RequestsEvent, RequestsState> {
       final entries = await providers.catalog();
       final sorted = [...mine]..sort((a, b) => b.createdAt.compareTo(a.createdAt));
       emit(
-        RequestsLoaded(items: sorted, providers: {for (final e in entries) e.provider.id: e.provider}, notice: notice),
+        RequestsLoaded(
+          items: sorted,
+          providers: {for (final e in entries) e.provider.id: e.provider},
+          actions: {
+            for (final r in sorted)
+              r.id: [
+                for (final action in _offered)
+                  if (applyAction(action, r, by: user).isSuccess) action,
+              ],
+          },
+          notice: notice,
+        ),
       );
     } on Exception catch (cause) {
       emit(RequestsError(cause));

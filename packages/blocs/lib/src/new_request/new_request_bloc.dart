@@ -53,7 +53,9 @@ final class NewRequestBloc extends Bloc<NewRequestEvent, NewRequestState> {
         case Success(:final value):
           emit(state.copyWith(status: NewRequestStatus.done, created: value));
         case Failure(:final error):
-          emit(state.copyWith(status: NewRequestStatus.editing, submitError: error));
+          // Server je odbio (npr. poslednje mesto je u međuvremenu zauzeo drugi klijent): razlog, a katalog
+          // treba ponovo učitati jer su se podaci promenili.
+          emit(state.copyWith(status: NewRequestStatus.editing, submitError: error, staleCatalog: true));
       }
     } on Exception catch (cause) {
       emit(state.copyWith(status: NewRequestStatus.editing, failure: cause));

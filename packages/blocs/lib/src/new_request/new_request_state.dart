@@ -14,6 +14,7 @@ final class NewRequestState extends Equatable {
     this.created,
     this.submitError,
     this.failure,
+    this.staleCatalog = false,
   });
 
   final ServiceType service;
@@ -31,6 +32,9 @@ final class NewRequestState extends Equatable {
   /// Port nije odgovorio.
   final Object? failure;
 
+  /// Server je odbio zahtev, pa slobodna mesta u katalogu više nisu tačna; ekran ponovo učitava katalog.
+  final bool staleCatalog;
+
   int get noteLength => note.trim().length;
 
   /// Novo stanje; greške slanja se brišu pri svakoj izmeni.
@@ -43,6 +47,7 @@ final class NewRequestState extends Equatable {
     CollaborationRequest? created,
     DomainError? submitError,
     Object? failure,
+    bool staleCatalog = false,
   }) => NewRequestState(
     service: service ?? this.service,
     note: note ?? this.note,
@@ -52,8 +57,9 @@ final class NewRequestState extends Equatable {
     created: created ?? this.created,
     submitError: submitError,
     failure: failure,
+    staleCatalog: staleCatalog,
   );
 
   @override
-  List<Object?> get props => [service, note, noteError, attempted, status, created, submitError, failure];
+  List<Object?> get props => [service, note, noteError, attempted, status, created, submitError, failure, staleCatalog];
 }

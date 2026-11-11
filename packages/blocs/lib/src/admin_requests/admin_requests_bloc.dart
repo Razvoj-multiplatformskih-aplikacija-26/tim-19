@@ -39,9 +39,11 @@ final class AdminRequestsBloc extends Bloc<AdminRequestsEvent, AdminRequestsStat
     if (current is AdminRequestsLoaded) emit(change(current));
   }
 
-  Future<void> _load(Emitter<AdminRequestsState> emit) async {
+  /// Učitava sve zahteve. Sa [quiet] nema prikaza učitavanja (osvežavanje posle odbijanja), a [notice]
+  /// ostaje u novom stanju; filter, sortiranje i izbor se zadržavaju.
+  Future<void> _load(Emitter<AdminRequestsState> emit, {bool quiet = false, AdminNotice? notice}) async {
     final previous = state;
-    emit(const AdminRequestsLoading());
+    if (!quiet) emit(const AdminRequestsLoading());
     try {
       final all = (await requests.requests(limit: maxListed)).items;
       if (all.isEmpty) {
@@ -63,8 +65,9 @@ final class AdminRequestsBloc extends Bloc<AdminRequestsEvent, AdminRequestsStat
                 statusFilter: previous.statusFilter,
                 query: previous.query,
                 selectedId: previous.selectedId,
+                notice: notice,
               )
-            : loaded,
+            : loaded.copyWith(notice: notice),
       );
     } on Exception catch (cause) {
       emit(AdminRequestsError(cause));
@@ -76,11 +79,8 @@ final class AdminRequestsBloc extends Bloc<AdminRequestsEvent, AdminRequestsStat
     if (current is! AdminRequestsLoaded || current.isBusy) return;
     final request = current.byId(event.id);
     if (request == null) return;
-    final next = switch (event.action) {
-      ModeratorAction.cancel => moderatorCancel(request, by: moderator),
-      ModeratorAction.close => moderatorClose(request, by: moderator),
-      ModeratorAction.reopen => moderatorReopen(request, by: moderator),
-    };
+    // Domen proverava pre slanja; server ponovo proverava i konačno odlučuje.
+    final next = applyAction(event.action.asRequestAction, request, by: moderator);
     if (next case Failure(:final error)) {
       emit(current.copyWith(notice: ModeratorActionRejected(event.action, error)));
       return;
@@ -94,7 +94,9 @@ final class AdminRequestsBloc extends Bloc<AdminRequestsEvent, AdminRequestsStat
         case Success(:final value):
           emit(latest.replaced(value).copyWith(busyId: null, notice: ModeratorActionDone(event.action, value)));
         case Failure(:final error):
-          emit(latest.copyWith(busyId: null, notice: ModeratorActionRejected(event.action, error)));
+          // Server je odbio (npr. drugi moderator je već zatvorio zahtev): razlog, pa sveži podaci.
+          emit(latest.copyWith(busyId: null));
+          await _load(emit, quiet: true, notice: ModeratorActionRejected(event.action, error));
       }
     } on Exception catch (cause) {
       final latest = state is AdminRequestsLoaded ? state as AdminRequestsLoaded : current;

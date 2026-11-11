@@ -32,15 +32,15 @@ class _SoundConnectAppState extends State<SoundConnectApp> {
     final notice = state.notice;
     if (notice == null) return;
     final text = switch (notice) {
-      RequestCancelled() => 'Zahtev je otkazan.',
-      CancelRejected(:final error) => domainErrorMessage(error),
-      CancelFailed(:final cause) => failureMessage(cause),
+      RequestActionDone(:final action) => actionDoneMessage(action),
+      RequestActionRejected(:final error) => domainErrorMessage(error),
+      RequestActionFailed(:final cause) => failureMessage(cause),
     };
     _messenger.currentState
       ?..hideCurrentSnackBar()
       ..showSnackBar(SnackBar(content: Text(text)));
-    // Otkazan zahtev oslobađa mesto kod pružaoca.
-    if (notice is RequestCancelled) context.read<CatalogBloc>().add(const LoadCatalog());
+    // Akcija ili odbijanje sa servera menjaju slobodna mesta kod pružaoca.
+    if (notice is! RequestActionFailed) context.read<CatalogBloc>().add(const LoadCatalog());
     context.read<RequestsBloc>().add(const RequestsNoticeShown());
   }
 
