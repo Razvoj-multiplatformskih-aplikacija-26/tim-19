@@ -10,7 +10,8 @@ part 'requests_state.dart';
 /// Zahtevi prijavljenog korisnika mobilne aplikacije i akcije nad njima: klijent svoje zahteve, pružalac
 /// zahteve upućene njemu. Isti Bloc radi nad serverom i nad lažnim portom.
 final class RequestsBloc extends Bloc<RequestsEvent, RequestsState> {
-  RequestsBloc({required this.requests, required this.providers, required this.user}) : super(const RequestsLoading()) {
+  RequestsBloc({required this.requests, required this.providers, required this.user, this.clients})
+    : super(const RequestsLoading()) {
     on<LoadRequests>((event, emit) async {
       emit(const RequestsLoading());
       await _reload(emit);
@@ -28,6 +29,9 @@ final class RequestsBloc extends Bloc<RequestsEvent, RequestsState> {
 
   final RequestsRepository requests;
   final ProvidersRepository providers;
+
+  /// Imena klijenata; potrebna pružaocu (zahtevi upućeni njemu), klijentu nisu.
+  final ClientsRepository? clients;
 
   /// Prijavljeni korisnik; pravo na akciju proverava domen u njegovo ime.
   final User user;
@@ -72,11 +76,16 @@ final class RequestsBloc extends Bloc<RequestsEvent, RequestsState> {
         return;
       }
       final entries = await providers.catalog();
+      final names = switch (clients) {
+        final clients? when AccessPolicy.canViewClients(user) => await clients.allClients(),
+        _ => const <Client>[],
+      };
       final sorted = [...mine]..sort((a, b) => b.createdAt.compareTo(a.createdAt));
       emit(
         RequestsLoaded(
           items: sorted,
           providers: {for (final e in entries) e.provider.id: e.provider},
+          clients: {for (final c in names) c.id: c},
           actions: {
             for (final r in sorted)
               r.id: [

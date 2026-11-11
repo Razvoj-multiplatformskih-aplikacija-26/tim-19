@@ -18,8 +18,9 @@ class NewRequestScreen extends StatelessWidget {
     id: providerId,
     builder: (context, catalog, provider) {
       final deps = context.read<AppDependencies>();
+      final user = context.read<RequestsBloc>().user;
       return BlocProvider(
-        create: (_) => NewRequestBloc(requests: deps.requests, provider: provider, user: deps.user),
+        create: (_) => NewRequestBloc(requests: deps.requests, provider: provider, user: user),
         child: _NewRequestForm(provider: provider),
       );
     },
@@ -41,8 +42,14 @@ class _NewRequestForm extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => BlocConsumer<NewRequestBloc, NewRequestState>(
-    listenWhen: (previous, current) => previous.status != current.status && current.status == NewRequestStatus.done,
-    listener: _onDone,
+    listenWhen: (previous, current) =>
+        (previous.status != current.status && current.status == NewRequestStatus.done) ||
+        (!previous.staleCatalog && current.staleCatalog),
+    listener: (context, state) {
+      if (state.status == NewRequestStatus.done) return _onDone(context, state);
+      // Server je odbio zahtev (npr. drugi klijent je upravo zauzeo poslednje mesto): sveža slobodna mesta.
+      context.read<CatalogBloc>().add(const LoadCatalog());
+    },
     builder: (context, state) {
       final bloc = context.read<NewRequestBloc>();
       final submitting = state.status != NewRequestStatus.editing;

@@ -28,6 +28,7 @@ final class RequestsLoaded extends RequestsState {
   const RequestsLoaded({
     required this.items,
     required this.providers,
+    this.clients = const {},
     this.actions = const {},
     this.notice,
     this.busyId,
@@ -36,6 +37,9 @@ final class RequestsLoaded extends RequestsState {
   /// Zahtevi koje korisnik vidi (klijent svoje, pružalac upućene njemu), najnoviji prvi.
   final List<CollaborationRequest> items;
   final Map<ProviderId, Provider> providers;
+
+  /// Imena klijenata (samo za pružaoca).
+  final Map<ClientId, Client> clients;
 
   /// Akcije koje domen dozvoljava prijavljenom korisniku, po zahtevu; ekran nudi samo njih.
   final Map<RequestId, List<RequestAction>> actions;
@@ -50,6 +54,8 @@ final class RequestsLoaded extends RequestsState {
 
   Provider? providerOf(CollaborationRequest request) => providers[request.providerId];
 
+  String clientName(CollaborationRequest request) => clients[request.clientId]?.name ?? request.clientId.value;
+
   List<RequestAction> actionsFor(CollaborationRequest request) => actions[request.id] ?? const [];
 
   /// Pravilo iz domena odlučuje da li se nudi dugme za otkazivanje.
@@ -59,11 +65,17 @@ final class RequestsLoaded extends RequestsState {
   DomainError? whyNotCancellable(CollaborationRequest request) =>
       request.status.isFinal ? null : canCancelByClient(request).errorOrNull;
 
-  RequestsLoaded copyWith({required RequestsNotice? notice, RequestId? busyId}) =>
-      RequestsLoaded(items: items, providers: providers, actions: actions, notice: notice, busyId: busyId);
+  RequestsLoaded copyWith({required RequestsNotice? notice, RequestId? busyId}) => RequestsLoaded(
+    items: items,
+    providers: providers,
+    clients: clients,
+    actions: actions,
+    notice: notice,
+    busyId: busyId,
+  );
 
   @override
-  List<Object?> get props => [items, providers, actions, notice, busyId];
+  List<Object?> get props => [items, providers, clients, actions, notice, busyId];
 }
 
 sealed class RequestsNotice extends Equatable {

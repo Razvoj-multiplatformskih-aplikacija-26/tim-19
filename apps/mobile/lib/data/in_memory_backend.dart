@@ -4,14 +4,14 @@ import 'seed.dart';
 
 /// Lažna implementacija portova u memoriji, sa kašnjenjem i prekidačima za grešku i prazan odgovor.
 /// Radi kao mali server: pravo, pravilo i prelaz proverava isti domenski kôd.
-final class InMemoryBackend implements RequestsRepository, ProvidersRepository {
+final class InMemoryBackend implements RequestsRepository, ProvidersRepository, ClientsRepository {
   InMemoryBackend({DateTime? now, this.latency = const Duration(milliseconds: 700), this.session = meUser})
     : _requests = seedRequests(now ?? DateTime.now());
 
   final Duration latency;
 
-  /// Korisnik u čije ime lažni port radi; na serveru ga daje prijava.
-  final User session;
+  /// Korisnik u čije ime lažni port radi; na serveru ga daje prijava ([FakeSessions] ga menja).
+  User session;
   final List<CollaborationRequest> _requests;
   final List<Provider> _providers = [...seedProviders];
 
@@ -98,5 +98,20 @@ final class InMemoryBackend implements RequestsRepository, ProvidersRepository {
     await _roundTrip();
     final provider = _providers.where(isListedInCatalog).where((p) => p.id == id).firstOrNull;
     return provider == null ? null : CatalogEntry(provider: provider, freeSlots: freeSlots(provider, _requests));
+  }
+
+  /// Kao server: pružalac vidi imena klijenata koji su mu poslali zahtev.
+  @override
+  Future<List<Client>> allClients() async {
+    await _roundTrip();
+    if (!AccessPolicy.canViewClients(session)) return const [];
+    final senders = {
+      for (final r in _requests)
+        if (AccessPolicy.canView(session, r)) r.clientId,
+    };
+    return [
+      for (final c in [me, ...otherClients])
+        if (senders.contains(c.id)) c,
+    ];
   }
 }

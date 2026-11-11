@@ -34,8 +34,15 @@ final class SoundStore {
     return rows.isEmpty ? null : _provider(rows.single.toColumnMap());
   }
 
-  Future<List<Client>> clients() async {
-    final rows = await _database.execute("SELECT id, name FROM users WHERE role = 'client' ORDER BY name");
+  /// Klijenti; sa [ofProvider] samo oni koji su tom pružaocu poslali bar jedan zahtev.
+  Future<List<Client>> clients({ProviderId? ofProvider}) async {
+    final onlyOf = ofProvider == null
+        ? ''
+        : ' AND id IN (SELECT client_id FROM requests WHERE provider_id = @provider)';
+    final rows = await _database.execute(
+      Sql.named("SELECT id, name FROM users WHERE role = 'client'$onlyOf ORDER BY name"),
+      parameters: {'provider': ?ofProvider?.value},
+    );
     return [for (final row in rows) Client(id: ClientId(row[0]! as String), name: row[1]! as String)];
   }
 

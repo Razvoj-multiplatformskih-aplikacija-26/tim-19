@@ -25,9 +25,14 @@ abstract final class AccessPolicy {
   /// Pregled svih zahteva (tabela u backoffice-u).
   static bool canViewAll(User user) => user.role == Role.moderator;
 
+  /// Imena klijenata: moderator vidi sve, pružalac samo one koji su mu poslali zahtev (to ograničava upit).
+  static bool canViewClients(User user) => user.role == Role.moderator || user.role == Role.provider;
+
+  /// Zahteve šalju samo klijenti (ekran po ovome nudi dugme „Pošalji zahtev“).
+  static bool canSendRequests(User user) => user.role == Role.client;
+
   /// Zahtev šalje samo klijent, i to u svoje ime.
-  static bool canCreateRequest(User user, NewRequest draft) =>
-      user.role == Role.client && draft.clientId == user.asClient;
+  static bool canCreateRequest(User user, NewRequest draft) => canSendRequests(user) && draft.clientId == user.asClient;
 
   /// Otkazivanje, potvrda isporuke i revizija: samo klijent, samo nad svojim zahtevom.
   static bool canActAsClient(User user, CollaborationRequest request) => isOwner(user, request);

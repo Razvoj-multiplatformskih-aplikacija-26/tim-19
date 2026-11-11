@@ -1,10 +1,12 @@
 import 'package:blocs/blocs.dart';
+import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:ui/ui.dart';
 
 import '../dependencies.dart';
 
-/// Prekidači za demonstraciju stanja ekrana. Rade samo nad lažnim portom.
+/// Prijavljeni korisnik i odjava; nad lažnim portom i prekidači za demonstraciju stanja ekrana.
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
 
@@ -17,18 +19,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget build(BuildContext context) {
     final deps = context.read<AppDependencies>();
     final fake = deps.fake;
+    final user = context.read<RequestsBloc>().user;
     return Scaffold(
       appBar: AppBar(title: const Text('Podešavanja')),
       body: ListView(
         children: [
           ListTile(
             leading: const Icon(Icons.person_outline),
-            title: Text(deps.client.name),
-            subtitle: const Text('Prijavljen klijent (prijava stiže u KT2)'),
+            title: Text(user.name),
+            subtitle: Text(user.role == Role.provider ? 'Pružalac usluga' : 'Klijent'),
+          ),
+          ListTile(
+            key: const Key('odjava'),
+            leading: const Icon(Icons.logout),
+            title: const Text('Odjavi se'),
+            onTap: () => context.read<SessionBloc>().add(const SignOutRequested()),
           ),
           const Divider(),
           if (fake == null)
-            const ListTile(title: Text('Aplikacija koristi pravi server.'))
+            const ListTile(
+              leading: Icon(Icons.dns_outlined),
+              title: Text('Aplikacija radi nad serverom.'),
+              subtitle: Text('Grešku veze pokazuje zaustavljen server (docker compose stop server).'),
+            )
           else ...[
             SwitchListTile(
               secondary: const Icon(Icons.cloud_off_outlined),
@@ -40,13 +53,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
             SwitchListTile(
               secondary: const Icon(Icons.inbox_outlined),
               title: const Text('Sledeća lista zahteva je prazna'),
-              subtitle: const Text('Prikazuje prazan ekran „Moji zahtevi“'),
+              subtitle: const Text('Prikazuje prazan ekran sa zahtevima'),
               value: fake.emptyResponses > 0,
               onChanged: (on) => setState(() => fake.emptyResponses = on ? 1 : 0),
             ),
             ListTile(
+              leading: const Icon(Icons.timer_off_outlined),
+              title: const Text('Prijava ističe sada'),
+              subtitle: const Text(sessionExpiredMessage),
+              onTap: () => deps.fakeSessions?.expire(),
+            ),
+            ListTile(
               leading: const Icon(Icons.refresh),
-              title: const Text('Ponovo učitaj moje zahteve'),
+              title: const Text('Ponovo učitaj zahteve'),
               onTap: () {
                 context.read<RequestsBloc>().add(const LoadRequests());
                 setState(() {});

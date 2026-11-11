@@ -6,6 +6,12 @@ const me = Client(id: ClientId('c-sava'), name: 'Sava Radošević');
 /// Nalog prijavljenog klijenta; ima isti identifikator kao profil [me].
 const meUser = User(id: UserId('c-sava'), name: 'Sava Radošević', role: Role.client);
 
+/// Nalog pružaoca Marka; ima isti identifikator kao njegov profil u katalogu.
+const markoUser = User(id: UserId('p-marko'), name: 'Marko „Mix“ Petrović', role: Role.provider);
+
+/// Moderator; mobilna ga ne pušta (backoffice je za moderatore).
+const moderatorUser = User(id: UserId('m-kosta'), name: 'Kosta Baštić', role: Role.moderator);
+
 const otherClients = [
   Client(id: ClientId('c-mila'), name: 'Mila Jovanović'),
   Client(id: ClientId('c-luka'), name: 'Luka Ilić'),

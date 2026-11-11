@@ -90,6 +90,12 @@ void main() {
       expect(AccessPolicy.canView(otherProvider, request()), isFalse);
     });
 
+    test('imena klijenata vide moderator i pružalac, ne klijent', () {
+      expect(AccessPolicy.canViewClients(moderator), isTrue);
+      expect(AccessPolicy.canViewClients(addressee), isTrue);
+      expect(AccessPolicy.canViewClients(owner), isFalse);
+    });
+
     test('moderator vidi sve zahteve', () {
       expect(AccessPolicy.canView(moderator, request(clientId: const ClientId('c-5'))), isTrue);
       expect(AccessPolicy.canViewAll(moderator), isTrue);

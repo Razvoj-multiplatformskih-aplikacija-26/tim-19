@@ -1,7 +1,10 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Aplikacija razgovara sa serverom; dozvola važi i za release build, ne samo za debug. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
     <application
         android:label="SoundConnect"
         android:name="${applicationName}"
+        android:networkSecurityConfig="@xml/network_security_config"
         android:icon="@mipmap/ic_launcher">
         <activity
             android:name=".MainActivity"

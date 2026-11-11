@@ -41,10 +41,12 @@ final class RequestHandlers {
     return json(200, found.toDto(freeSlots: freeSlots(found, active)).toJson());
   }
 
-  /// Imena klijenata za tabelu moderatora.
+  /// Imena klijenata: moderatoru sva (tabela), pružaocu samo onih koji su mu poslali zahtev.
   Future<Response> clients(Request request) async {
-    if (!AccessPolicy.canViewAll(_user(request))) return problem(const NotAllowed());
-    return json(200, [for (final c in await SoundStore(database).clients()) c.toDto().toJson()]);
+    final user = _user(request);
+    if (!AccessPolicy.canViewClients(user)) return problem(const NotAllowed());
+    final clients = await SoundStore(database).clients(ofProvider: user.role == Role.provider ? user.asProvider : null);
+    return json(200, [for (final c in clients) c.toDto().toJson()]);
   }
 
   // Zahtevi.

@@ -80,10 +80,14 @@ void main() {
       expect((await get(ApiPaths.provider('p-novi'), kosta)).statusCode, 200);
     });
 
-    test('klijente vidi samo moderator', () async {
+    test('imena klijenata: moderator sva, pružalac samo svojih, klijent nijedna', () async {
       expectProblem(await get(ApiPaths.clients, sava), 403, ErrorCodes.notAllowed);
-      final answer = await get(ApiPaths.clients, kosta);
-      expect(jsonDecode(answer.body) as List<Object?>, hasLength(6));
+      expect(jsonDecode((await get(ApiPaths.clients, kosta)).body) as List<Object?>, hasLength(6));
+      final ofMarko = [
+        for (final c in jsonDecode((await get(ApiPaths.clients, marko)).body) as List<Object?>)
+          (c! as Map<String, Object?>)['id'],
+      ];
+      expect(ofMarko, unorderedEquals(['c-sava', 'c-mila', 'c-vuk']));
     });
   });
 

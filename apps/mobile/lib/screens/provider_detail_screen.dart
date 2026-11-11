@@ -45,6 +45,7 @@ class ProviderDetailScreen extends StatelessWidget {
     builder: (context, catalog, provider) {
       final theme = Theme.of(context);
       final free = catalog.freeSlotsOf(provider);
+      final canSend = AccessPolicy.canSendRequests(context.read<RequestsBloc>().user);
       return Scaffold(
         appBar: AppBar(title: Text(provider.name)),
         body: ListView(
@@ -78,16 +79,18 @@ class ProviderDetailScreen extends StatelessWidget {
             ),
           ],
         ),
-        bottomNavigationBar: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: FilledButton.icon(
-              onPressed: free == 0 ? null : () => context.go('/katalog/${provider.id.value}/novi-zahtev'),
-              icon: const Icon(Icons.send_rounded),
-              label: Text(free == 0 ? 'Nema slobodnih mesta' : 'Pošalji zahtev'),
-            ),
-          ),
-        ),
+        bottomNavigationBar: !canSend
+            ? null
+            : SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: FilledButton.icon(
+                    onPressed: free == 0 ? null : () => context.go('/katalog/${provider.id.value}/novi-zahtev'),
+                    icon: const Icon(Icons.send_rounded),
+                    label: Text(free == 0 ? 'Nema slobodnih mesta' : 'Pošalji zahtev'),
+                  ),
+                ),
+              ),
       );
     },
   );
