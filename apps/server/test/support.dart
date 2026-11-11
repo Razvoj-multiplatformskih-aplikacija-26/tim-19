@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -36,7 +37,7 @@ Future<Pool<void>> freshTestDatabase(String name) async {
 
 /// Server nad test bazom na slobodnom portu, sa istim putanjama kao pravi.
 final class TestServer {
-  TestServer._(this.database, this._server, this.base, this.sessions);
+  TestServer._(this.database, this._server, this.base, this.sessions, this.notifications);
 
   static Future<TestServer> start(
     Pool<void> database, {
@@ -44,15 +45,20 @@ final class TestServer {
     List<String> corsOrigins = const ['http://localhost:8081'],
   }) async {
     final sessions = SessionHandlers(accounts: AccountStore(database), secret: config.jwtSecret, ttl: ttl);
+    final notifications = FakeNotifications(apiKey: 'test', log: _silent);
+    final handlers = RequestHandlers(database: database, notifications: notifications);
     final server = RelicServer(() => IOAdapter.bind(InternetAddress.loopbackIPv4, port: 0));
-    await server.mountAndStart(buildHandler(database, sessions, corsOrigins: corsOrigins));
-    return TestServer._(database, server, Uri.parse('http://localhost:${server.port}'), sessions);
+    await server.mountAndStart(buildHandler(database, sessions, handlers, corsOrigins: corsOrigins));
+    return TestServer._(database, server, Uri.parse('http://localhost:${server.port}'), sessions, notifications);
   }
 
   final Pool<void> database;
   final RelicServer _server;
   final Uri base;
   final SessionHandlers sessions;
+
+  /// Lažni spoljni servis; test proverava da je server poslao obaveštenje.
+  final FakeNotifications notifications;
 
   Uri uri(String path, [Map<String, String>? query]) => base.replace(path: path, queryParameters: query);
 
@@ -81,3 +87,6 @@ Map<String, String> bearer(String token) => {'Content-Type': 'application/json',
 String codeOf(http.Response response) => (jsonDecode(response.body) as Map<String, Object?>)['code']! as String;
 
 Map<String, Object?> bodyOf(http.Response response) => jsonDecode(response.body) as Map<String, Object?>;
+
+/// Tihi log za lažna obaveštenja u testovima.
+final IOSink _silent = IOSink(StreamController<List<int>>()..stream.listen((_) {}));

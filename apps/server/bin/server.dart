@@ -18,7 +18,11 @@ Future<void> main() async {
     secureCookie: config.secureCookie,
   );
   final server = RelicServer(() => IOAdapter.bind(InternetAddress(config.host), port: config.port));
-  await server.mountAndStart(buildHandler(database, sessions, corsOrigins: config.corsOrigins));
+  final handlers = RequestHandlers(
+    database: database,
+    notifications: FakeNotifications(apiKey: config.notifyApiKey),
+  );
+  await server.mountAndStart(buildHandler(database, sessions, handlers, corsOrigins: config.corsOrigins));
   stdout.writeln('SoundConnect server na http://${config.host}:${config.port}');
   await _stopSignal();
   await server.close();
