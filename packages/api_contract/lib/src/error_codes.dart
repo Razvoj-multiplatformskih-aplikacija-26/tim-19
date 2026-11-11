@@ -24,5 +24,6 @@ abstract final class ErrorCodes {
   // HTTP.
   static const badRequest = 'bad-request';
   static const unsupportedMediaType = 'unsupported-media-type';
+  static const payloadTooLarge = 'payload-too-large';
   static const serverError = 'server-error';
 }

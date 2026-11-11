@@ -13,6 +13,7 @@ workspace:
   - packages/ui
   - packages/api_contract
   - packages/api_mapping
+  - apps/server
 
 dev_dependencies:
   flutter_lints: 6.0.0
